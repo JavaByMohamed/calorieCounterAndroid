@@ -293,7 +293,28 @@ async function saveMealHistory(history) {
   }
 }
 
-// ==================== DAY MEALS ====================
+// ==================== DAY MEALS (with inline editing) ====================
+let _inlineEditId = null;
+let _inlineEditMeal = null;
+let _inlineEditAllHistory = null;
+
+function _escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function computeItemTotals(items) {
+  return items.reduce((acc, item) => {
+    acc.calories += (item.calories || 0);
+    acc.protein  += (item.protein  || 0);
+    acc.fat      += (item.fat      || 0);
+    acc.carbs    += (item.carbs    || 0);
+    acc.fiber    += (item.fiber    || 0);
+    return acc;
+  }, { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0 });
+}
+
 function renderDayMeals(meals) {
   if (meals.length === 0) {
     dayMeals.innerHTML = '<p>No meals logged for this day. <a href="meal.html">Add a meal →</a></p>';
@@ -306,13 +327,13 @@ function renderDayMeals(meals) {
     const servingsEaten = meal.servingsEaten || 1;
     const totalServings = meal.servings || 1;
     html += `
-      <div class="saved-meal-card">
+      <div class="saved-meal-card" id="mealCard_${meal.id}">
         <div class="meal-card-header">
           <h4>${meal.name}</h4>
           <span class="meal-date">🕐 ${time}</span>
           ${totalServings > 1 ? `<span class="serving-badge">🍽️ ${servingsEaten} of ${totalServings} portions</span>` : ''}
           <div class="meal-card-actions">
-            <button class="edit-tracker-meal-btn" data-id="${meal.id}" title="Change portions eaten">✏️ Edit</button>
+            <button class="edit-tracker-meal-btn" data-id="${meal.id}" title="Edit ingredients & amounts">✏️ Edit</button>
             <button class="reuse-meal-btn" data-id="${meal.id}" title="Reuse this meal">♻️ Reuse</button>
             <button class="delete-btn delete-tracker-meal-btn" data-id="${meal.id}" title="Remove from tracker">🗑️ Delete</button>
           </div>
@@ -337,7 +358,7 @@ function renderDayMeals(meals) {
   });
   dayMeals.innerHTML = html;
 
-  // Attach delete handlers — remove meal from tracker
+  // Delete
   dayMeals.querySelectorAll(".delete-tracker-meal-btn").forEach((btn) => {
     btn.addEventListener("click", async function () {
       const id = parseInt(this.getAttribute("data-id"));
@@ -350,48 +371,35 @@ function renderDayMeals(meals) {
     });
   });
 
-  // Attach edit handlers — change how many portions were eaten
+  // Edit — enter inline edit mode for that card
   dayMeals.querySelectorAll(".edit-tracker-meal-btn").forEach((btn) => {
     btn.addEventListener("click", async function () {
       const id = parseInt(this.getAttribute("data-id"));
-      let allHistory = await getMealHistory();
+      const allHistory = await getMealHistory();
       const meal = allHistory.find((m) => m.id === id);
-      if (!meal || !meal.perServing) {
-        alert("Cannot edit this meal — no per-serving data available.");
-        return;
-      }
+      if (!meal) { alert("Meal not found."); return; }
 
-      const totalServings = meal.servings || 1;
-      const currentEaten = meal.servingsEaten || 1;
-      const newServings = prompt(
-        `This recipe makes ${totalServings} portion${totalServings > 1 ? 's' : ''}.\nCurrently logged: ${currentEaten} portion${currentEaten > 1 ? 's' : ''}.\n\nHow many portions did you eat?`,
-        currentEaten
-      );
-      if (newServings === null) return;
+      const card = document.getElementById(`mealCard_${id}`);
+      if (!card) return;
 
-      const parsed = parseInt(newServings);
-      if (isNaN(parsed) || parsed < 1) {
-        alert("Please enter a valid number (1 or more).");
-        return;
-      }
+      _inlineEditId = id;
+      _inlineEditAllHistory = allHistory;
+      _inlineEditMeal = JSON.parse(JSON.stringify(meal));
 
-      // Recalculate totals based on new servings eaten
-      meal.servingsEaten = parsed;
-      meal.totals = {
-        calories: +(meal.perServing.calories * parsed).toFixed(1),
-        protein: +(meal.perServing.protein * parsed).toFixed(1),
-        fat: +(meal.perServing.fat * parsed).toFixed(1),
-        carbs: +(meal.perServing.carbs * parsed).toFixed(1),
-        fiber: +((meal.perServing.fiber || 0) * parsed).toFixed(1),
-      };
-      meal.name = meal.name.replace(/ \(x\d+\)$/, "") + (parsed > 1 ? ` (x${parsed})` : "");
+      // Pre-compute per-gram nutrition ratios for live recalculation when user changes grams
+      _inlineEditMeal.items.forEach(item => {
+        item._perGram = item.amount > 0
+          ? { cal: item.calories/item.amount, prot: item.protein/item.amount,
+              fat: item.fat/item.amount, carbs: item.carbs/item.amount,
+              fiber: (item.fiber||0)/item.amount }
+          : { cal: 0, prot: 0, fat: 0, carbs: 0, fiber: 0 };
+      });
 
-      await saveMealHistory(allHistory);
-      refreshTracker();
+      renderCardEditMode(card);
     });
   });
 
-  // Attach reuse handlers — reuse meal with portion selection
+  // Reuse
   dayMeals.querySelectorAll(".reuse-meal-btn").forEach((btn) => {
     btn.addEventListener("click", async function () {
       const id = parseInt(this.getAttribute("data-id"));
@@ -401,25 +409,225 @@ function renderDayMeals(meals) {
 
       const totalServings = meal.servings || 1;
       let portionsToLog = 1;
-
       if (totalServings > 1 && meal.perServing) {
-        const input = prompt(
-          `This recipe makes ${totalServings} portions.\nHow many portions do you want to log?`,
-          "1"
-        );
+        const input = prompt(`This recipe makes ${totalServings} portions.\nHow many portions do you want to log?`, "1");
         if (input === null) return;
         portionsToLog = Math.max(1, parseInt(input) || 1);
       }
-
-      // Store meal data with portion selection in sessionStorage
-      const reuseData = {
-        ...meal,
-        _requestedPortions: portionsToLog,
-      };
+      const reuseData = { ...meal, _requestedPortions: portionsToLog };
       sessionStorage.setItem("reuseMeal", JSON.stringify(reuseData));
       window.location.href = "meal.html";
     });
   });
+}
+
+// ==================== INLINE MEAL EDITOR ====================
+function renderCardEditMode(card) {
+  const m = _inlineEditMeal;
+  const time = new Date(m.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const totals = computeItemTotals(m.items);
+  const cleanName = (m.name || "").replace(/ \(x\d+\)$/, "");
+
+  const rowsHtml = m.items.map((item, idx) => `
+    <tr data-idx="${idx}">
+      <td class="ing-name-cell">${_escapeHtml(item.name)}</td>
+      <td><input type="number" class="inline-amount-input" data-idx="${idx}"
+           value="${item.amount.toFixed(1)}" min="0.1" step="0.1" /></td>
+      <td class="cell-cal">${(item.calories||0).toFixed(1)}</td>
+      <td class="cell-prot">${(item.protein||0).toFixed(1)}</td>
+      <td class="cell-fat">${(item.fat||0).toFixed(1)}</td>
+      <td class="cell-carbs">${(item.carbs||0).toFixed(1)}</td>
+      <td class="cell-fiber">${(item.fiber||0).toFixed(1)}</td>
+      <td><button class="inline-del-btn" data-idx="${idx}" title="Remove ingredient">🗑️</button></td>
+    </tr>`).join("");
+
+  card.classList.add("editing");
+  card.innerHTML = `
+    <div class="meal-card-header">
+      <input type="text" id="inlineEditName_${m.id}" class="inline-name-input"
+             value="${_escapeHtml(cleanName)}" placeholder="Meal name" />
+      <span class="meal-date">🕐 ${time}</span>
+      <div class="meal-card-actions">
+        <button class="inline-save-btn" data-id="${m.id}">✅ Save</button>
+        <button class="inline-cancel-btn">❌ Cancel</button>
+      </div>
+    </div>
+
+    <div class="inline-edit-table-wrap">
+      <table class="inline-edit-table">
+        <thead><tr>
+          <th style="text-align:left">Ingredient</th>
+          <th>Grams</th><th>Cal</th><th>Protein</th><th>Fat</th><th>Carbs</th><th>Fiber</th><th></th>
+        </tr></thead>
+        <tbody>${rowsHtml}</tbody>
+        <tfoot><tr class="inline-totals-row">
+          <td style="text-align:left"><strong>Total</strong></td><td>—</td>
+          <td class="itotal-cal">${totals.calories.toFixed(1)}</td>
+          <td class="itotal-prot">${totals.protein.toFixed(1)}</td>
+          <td class="itotal-fat">${totals.fat.toFixed(1)}</td>
+          <td class="itotal-carbs">${totals.carbs.toFixed(1)}</td>
+          <td class="itotal-fiber">${totals.fiber.toFixed(1)}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+    </div>
+
+    <div class="inline-add-row">
+      <strong>➕ Add ingredient</strong>
+      <div class="inline-add-fields">
+        <input type="text"   class="inline-add-name"   placeholder="Name" />
+        <input type="number" class="inline-add-amount"  placeholder="Grams" min="0.1" step="0.1" />
+        <input type="number" class="inline-add-cal"     placeholder="Cal/100g" min="0" step="0.1" />
+        <input type="number" class="inline-add-prot"    placeholder="Protein/100g" min="0" step="0.1" />
+        <input type="number" class="inline-add-fat"     placeholder="Fat/100g" min="0" step="0.1" />
+        <input type="number" class="inline-add-carbs"   placeholder="Carbs/100g" min="0" step="0.1" />
+        <button class="inline-add-ing-btn add-ing-btn">Add</button>
+      </div>
+    </div>
+
+    <div class="inline-servings-row">
+      <label>Recipe servings:
+        <input type="number" class="inline-servings" value="${m.servings || 1}" min="1" step="1" />
+      </label>
+      <label>Portions eaten:
+        <input type="number" class="inline-servings-eaten" value="${m.servingsEaten || 1}" min="1" step="1" />
+      </label>
+    </div>
+  `;
+
+  bindCardEditEvents(card, m.id);
+}
+
+function updateInlineTotals(card) {
+  const t = computeItemTotals(_inlineEditMeal.items);
+  card.querySelector(".itotal-cal").textContent   = t.calories.toFixed(1);
+  card.querySelector(".itotal-prot").textContent  = t.protein.toFixed(1);
+  card.querySelector(".itotal-fat").textContent   = t.fat.toFixed(1);
+  card.querySelector(".itotal-carbs").textContent = t.carbs.toFixed(1);
+  card.querySelector(".itotal-fiber").textContent = t.fiber.toFixed(1);
+}
+
+function bindCardEditEvents(card, mealId) {
+  // Amount changed → recalculate nutrition using per-gram ratio
+  card.querySelectorAll(".inline-amount-input").forEach(input => {
+    input.addEventListener("change", function () {
+      const idx = parseInt(this.dataset.idx);
+      const newAmt = parseFloat(this.value);
+      if (isNaN(newAmt) || newAmt <= 0) {
+        this.value = _inlineEditMeal.items[idx].amount.toFixed(1);
+        return;
+      }
+      const item = _inlineEditMeal.items[idx];
+      item.amount   = newAmt;
+      item.calories = +(item._perGram.cal   * newAmt).toFixed(1);
+      item.protein  = +(item._perGram.prot  * newAmt).toFixed(1);
+      item.fat      = +(item._perGram.fat   * newAmt).toFixed(1);
+      item.carbs    = +(item._perGram.carbs * newAmt).toFixed(1);
+      item.fiber    = +(item._perGram.fiber * newAmt).toFixed(1);
+      const row = this.closest("tr");
+      row.querySelector(".cell-cal").textContent   = item.calories.toFixed(1);
+      row.querySelector(".cell-prot").textContent  = item.protein.toFixed(1);
+      row.querySelector(".cell-fat").textContent   = item.fat.toFixed(1);
+      row.querySelector(".cell-carbs").textContent = item.carbs.toFixed(1);
+      row.querySelector(".cell-fiber").textContent = item.fiber.toFixed(1);
+      updateInlineTotals(card);
+    });
+  });
+
+  // Delete ingredient
+  card.querySelectorAll(".inline-del-btn").forEach(btn => {
+    btn.addEventListener("click", function () {
+      const idx = parseInt(this.dataset.idx);
+      if (_inlineEditMeal.items.length <= 1) {
+        alert("A meal must have at least one ingredient.");
+        return;
+      }
+      if (confirm(`Remove "${_inlineEditMeal.items[idx].name}" from this meal?`)) {
+        _inlineEditMeal.items.splice(idx, 1);
+        renderCardEditMode(card);
+      }
+    });
+  });
+
+  // Add ingredient
+  card.querySelector(".inline-add-ing-btn").addEventListener("click", () => {
+    const name    = (card.querySelector(".inline-add-name").value   || "").trim();
+    const amount  = parseFloat(card.querySelector(".inline-add-amount").value);
+    const cal100  = parseFloat(card.querySelector(".inline-add-cal").value)   || 0;
+    const prot100 = parseFloat(card.querySelector(".inline-add-prot").value)  || 0;
+    const fat100  = parseFloat(card.querySelector(".inline-add-fat").value)   || 0;
+    const carbs100= parseFloat(card.querySelector(".inline-add-carbs").value) || 0;
+    if (!name || isNaN(amount) || amount <= 0) {
+      alert("Enter an ingredient name and gram amount.");
+      return;
+    }
+    const f = amount / 100;
+    _inlineEditMeal.items.push({
+      name: name.toLowerCase(), amount,
+      calories: +(cal100*f).toFixed(1), protein: +(prot100*f).toFixed(1),
+      fat: +(fat100*f).toFixed(1), carbs: +(carbs100*f).toFixed(1), fiber: 0,
+      _perGram: { cal: cal100/100, prot: prot100/100, fat: fat100/100, carbs: carbs100/100, fiber: 0 },
+    });
+    renderCardEditMode(card);
+  });
+
+  // Save
+  card.querySelector(".inline-save-btn").addEventListener("click", () => saveInlineEdit(card, mealId));
+
+  // Cancel
+  card.querySelector(".inline-cancel-btn").addEventListener("click", () => {
+    _inlineEditId = null;
+    _inlineEditMeal = null;
+    _inlineEditAllHistory = null;
+    refreshTracker();
+  });
+}
+
+async function saveInlineEdit(card, mealId) {
+  const meal       = _inlineEditMeal;
+  const allHistory = _inlineEditAllHistory;
+
+  const name          = (card.querySelector(`#inlineEditName_${mealId}`)?.value || "").trim() || "Meal";
+  const servings      = Math.max(1, parseInt(card.querySelector(".inline-servings")?.value)       || 1);
+  const servingsEaten = Math.max(1, parseInt(card.querySelector(".inline-servings-eaten")?.value) || 1);
+
+  const totals = computeItemTotals(meal.items);
+  const perServing = {
+    calories: +(totals.calories / servings).toFixed(1),
+    protein:  +(totals.protein  / servings).toFixed(1),
+    fat:      +(totals.fat      / servings).toFixed(1),
+    carbs:    +(totals.carbs    / servings).toFixed(1),
+    fiber:    +(totals.fiber    / servings).toFixed(1),
+  };
+  const loggedTotals = {
+    calories: +(perServing.calories * servingsEaten).toFixed(1),
+    protein:  +(perServing.protein  * servingsEaten).toFixed(1),
+    fat:      +(perServing.fat      * servingsEaten).toFixed(1),
+    carbs:    +(perServing.carbs    * servingsEaten).toFixed(1),
+    fiber:    +(perServing.fiber    * servingsEaten).toFixed(1),
+  };
+
+  // Strip internal _perGram helper before saving to Firebase
+  const cleanItems = meal.items.map(({ _perGram, ...rest }) => rest);
+
+  const idx = allHistory.findIndex(m => m.id === meal.id);
+  if (idx !== -1) {
+    allHistory[idx] = {
+      ...allHistory[idx],
+      name: name + (servingsEaten > 1 ? ` (x${servingsEaten})` : ""),
+      servings,
+      servingsEaten,
+      items: cleanItems,
+      totals: loggedTotals,
+      perServing,
+    };
+  }
+
+  await saveMealHistory(allHistory);
+  _inlineEditId = null;
+  _inlineEditMeal = null;
+  _inlineEditAllHistory = null;
+  refreshTracker();
 }
 
 // ==================== DAY WORKOUTS ====================

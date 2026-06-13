@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "android:live": "node tools/android-live.js",
     "android:phone": "cap copy android && cap run android",
     "android:phone:sync": "cap sync android && cap run android",
     "android:release:apk": "cap copy android && cd android && ./gradlew assembleRelease",

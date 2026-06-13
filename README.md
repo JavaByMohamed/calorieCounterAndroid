@@ -3,8 +3,29 @@ This website is for fitness and nutrition people to keep track of their daily ca
 
 ## Android quick deploy commands
 
+- `npm run android:live` -> starts a local live server, closes the previous Chrome tab for that localhost session, opens a fresh Chrome tab, then launches Capacitor Android live reload against that same URL.
 - `npm run android:phone` -> copy latest web assets, then run on connected Android phone.
 - `npm run android:phone:sync` -> sync Capacitor plugins/config, then run on connected Android phone.
+
+### `android:live` defaults
+
+- Live URL: `http://localhost:4173/index.html`
+- Chrome auto-open/old-tab cleanup: macOS only
+- Android runs with Capacitor live reload + `adb reverse` port forwarding
+
+Optional overrides:
+
+```bash
+ANDROID_LIVE_PORT=5005 npm run android:live
+ANDROID_LIVE_PAGE=/daily-tracker.html npm run android:live
+ANDROID_LIVE_HOST=localhost ANDROID_LIVE_PORT=4173 npm run android:live
+```
+
+Helper-only dry run:
+
+```bash
+node tools/android-live.js --no-run --no-open
+```
 
 ## Android release workflow (for daily use)
 

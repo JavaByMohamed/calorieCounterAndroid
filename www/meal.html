@@ -23,6 +23,7 @@
           <button type="button" class="api-source-btn active" data-source="stores" data-i18n="meal.storeProducts">🏪 Store Products</button>
           <button type="button" class="api-source-btn" data-source="fatsecret" data-i18n="meal.fatSecret">🍽️ FatSecret</button>
           <button type="button" class="api-source-btn" data-source="livsmedelsverket" data-i18n="meal.livsmedelsverket">📋 Livsmedelsverket</button>
+          <button type="button" class="api-source-btn" data-source="history">📚 Meal History</button>
         </div>
 
         <div class="form-group" style="position:relative;">
@@ -103,6 +104,7 @@
 
     <section class="save-meal-section">
       <h3 data-i18n="meal.saveMeal">Save Meal</h3>
+      <p id="editingMealNotice" class="edit-meal-notice" style="display:none;"></p>
       <div class="form-group">
         <label for="mealName" data-i18n="meal.mealName">Meal Name</label>
         <input type="text" id="mealName" data-i18n-placeholder="meal.mealNamePlaceholder" placeholder="e.g. Monday Lunch" />

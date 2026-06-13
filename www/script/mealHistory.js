@@ -89,6 +89,7 @@ async function displayHistory(filterDateStr, searchQuery) {
           <h4>${meal.name}</h4>
           <span class="meal-date">${formatDate(meal.date)}</span>
           <span class="serving-badge">🍽️ ${totalServingWeight.toFixed(0)}g total${meal.servings > 1 ? ` · ${meal.servings} servings · ${(totalServingWeight / meal.servings).toFixed(0)}g/serving` : ''}</span>
+          <button class="edit-meal-btn" data-id="${meal.id}" title="Edit this meal">✏️ Edit</button>
           <button class="reuse-meal-btn" data-id="${meal.id}" title="Reuse this meal">♻️ Reuse</button>
           <button class="delete-btn delete-meal-btn" data-id="${meal.id}">🗑️ Delete</button>
         </div>
@@ -176,6 +177,20 @@ async function displayHistory(filterDateStr, searchQuery) {
         sessionStorage.setItem("reuseMeal", JSON.stringify(reuseData));
         window.location.href = "meal.html";
       }
+    });
+  });
+
+  // Edit buttons — open meal form in edit mode
+  document.querySelectorAll(".edit-meal-btn").forEach((btn) => {
+    btn.addEventListener("click", async function () {
+      const id = parseInt(this.getAttribute("data-id"));
+      const h = await getMealHistory();
+      const meal = h.find((m) => m.id === id);
+      if (!meal) return;
+
+      sessionStorage.removeItem("reuseMeal");
+      sessionStorage.setItem("editMeal", JSON.stringify(meal));
+      window.location.href = "meal.html";
     });
   });
 }

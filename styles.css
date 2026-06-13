@@ -1103,6 +1103,534 @@ footer {
   color: #555;
 }
 
+/* ==================== INLINE MEAL EDITOR ==================== */
+.saved-meal-card.editing {
+  border: 2px solid #2ecc71;
+  background: linear-gradient(135deg, #f8fffb, #ffffff);
+  box-shadow: 0 8px 24px rgba(46,204,113,0.18);
+}
+
+.inline-name-input {
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+  border: 1px solid #ddd;
+  border-radius: 7px;
+  padding: 5px 10px;
+  flex: 1;
+  min-width: 0;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.inline-name-input:focus {
+  outline: none;
+  border-color: #2ecc71;
+  box-shadow: 0 0 0 2px rgba(46,204,113,0.15);
+}
+
+.inline-edit-table-wrap {
+  overflow-x: auto;
+  margin-top: 10px;
+  border-radius: 8px;
+}
+
+.inline-edit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.inline-edit-table th {
+  background: linear-gradient(135deg, #f0faf4, #e8f5e9);
+  color: #27ae60;
+  font-weight: 600;
+  padding: 8px 9px;
+  text-align: center;
+  border: 1px solid #d5ead8;
+  white-space: nowrap;
+}
+
+.inline-edit-table td {
+  padding: 6px 7px;
+  border: 1px solid #eee;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.ing-name-cell {
+  text-align: left !important;
+  font-weight: 500;
+  min-width: 100px;
+  color: #333;
+}
+
+.inline-totals-row td {
+  background: #f0faf4;
+  font-weight: 700;
+  color: #27ae60;
+  border-top: 2px solid #c8e6c9;
+}
+
+.inline-edit-table tbody tr:hover td {
+  background: #f9fffc;
+}
+
+.inline-amount-input {
+  width: 70px;
+  padding: 4px 5px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  text-align: center;
+  font-size: 13px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.inline-amount-input:focus {
+  outline: none;
+  border-color: #2ecc71;
+  box-shadow: 0 0 0 2px rgba(46,204,113,0.15);
+}
+
+.inline-del-btn {
+  background: none;
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+  border-radius: 5px;
+  padding: 3px 7px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+
+.inline-del-btn:hover {
+  background: #e74c3c;
+  color: white;
+}
+
+/* Add ingredient section */
+.inline-add-row {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f8fffe;
+  border: 1px solid #c8e6c9;
+  border-radius: 9px;
+}
+
+.inline-add-row strong {
+  display: block;
+  color: #27ae60;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.inline-add-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.inline-add-fields input {
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 12px;
+  min-width: 0;
+  transition: border-color 0.2s;
+}
+
+.inline-add-fields input[type="text"] { flex: 2; min-width: 110px; }
+.inline-add-fields input[type="number"] { flex: 1; min-width: 72px; text-align: center; }
+
+.inline-add-fields input:focus {
+  outline: none;
+  border-color: #2ecc71;
+}
+
+.inline-add-ing-btn {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 14px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.inline-add-ing-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* Servings row */
+.inline-servings-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #f8f8f8;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #555;
+}
+
+.inline-servings-row label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.inline-servings-row input {
+  width: 58px;
+  padding: 5px 7px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 13px;
+  transition: border-color 0.2s;
+}
+
+.inline-servings-row input:focus {
+  outline: none;
+  border-color: #2ecc71;
+}
+
+/* Inline Save / Cancel buttons */
+.inline-save-btn {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+  border: none;
+  border-radius: 7px;
+  padding: 5px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.inline-save-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.inline-cancel-btn {
+  background: #f0f0f0;
+  color: #555;
+  border: 1px solid #ddd;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.inline-cancel-btn:hover { background: #e0e0e0; }
+
+/* Daily Tracker */
+.edit-meal-modal {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3000;
+}
+
+.edit-meal-modal-content {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  width: 95%;
+  max-width: 820px;
+  max-height: 92vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  animation: fadeInUp 0.25s ease-out;
+}
+
+.edit-meal-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  border-bottom: 2px solid #e8f5e9;
+  padding-bottom: 12px;
+}
+
+.edit-meal-modal-header h4 {
+  color: #27ae60;
+  font-size: 18px;
+  margin: 0;
+}
+
+.close-edit-modal-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  color: #999;
+  cursor: pointer;
+  padding: 0 5px;
+  transition: color 0.2s;
+  line-height: 1;
+}
+
+.close-edit-modal-btn:hover { color: #333; }
+
+.edit-meal-info-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.edit-meal-info-grid .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edit-meal-info-grid label {
+  font-size: 11px;
+  color: #888;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.edit-meal-info-grid input {
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.edit-meal-info-grid input:focus {
+  outline: none;
+  border-color: #2ecc71;
+  box-shadow: 0 0 0 2px rgba(46,204,113,0.15);
+}
+
+.edit-meal-section { margin-bottom: 20px; }
+
+.edit-meal-section h5 {
+  color: #555;
+  margin-bottom: 10px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 700;
+}
+
+.edit-ingredient-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 6px;
+}
+
+.edit-ingredient-table th {
+  background: linear-gradient(135deg, #f0faf4, #e8f5e9);
+  color: #27ae60;
+  font-weight: 600;
+  padding: 8px 10px;
+  text-align: center;
+  border: 1px solid #d5ead8;
+}
+
+.edit-ingredient-table td {
+  padding: 7px 8px;
+  border: 1px solid #eee;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.edit-ingredient-table .ing-name {
+  text-align: left;
+  font-weight: 500;
+  min-width: 110px;
+  color: #333;
+}
+
+.edit-ingredient-table tfoot td {
+  background: #f0faf4;
+  font-weight: 700;
+  color: #27ae60;
+  border-top: 2px solid #c8e6c9;
+}
+
+.edit-ingredient-table tbody tr:hover td {
+  background: #f9fffc;
+}
+
+.edit-amount-input {
+  width: 75px;
+  padding: 5px 6px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 13px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.edit-amount-input:focus {
+  outline: none;
+  border-color: #2ecc71;
+  box-shadow: 0 0 0 2px rgba(46,204,113,0.15);
+}
+
+.delete-ingredient-btn {
+  background: none;
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.delete-ingredient-btn:hover {
+  background: #e74c3c;
+  color: white;
+}
+
+/* Add-ingredient section inside modal */
+.add-ingredient-form {
+  background: #f8fffe;
+  border: 1px solid #c8e6c9;
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 4px;
+}
+
+.add-ingredient-form h5 {
+  color: #27ae60;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.add-ingredient-labels {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 5px;
+  font-size: 11px;
+  color: #888;
+  font-weight: 600;
+  text-align: center;
+}
+
+.add-ingredient-labels span:first-child { text-align: left; }
+
+.add-ingredient-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.add-ingredient-grid input {
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 12px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.add-ingredient-grid input:first-child { text-align: left; }
+
+.add-ingredient-grid input:focus {
+  outline: none;
+  border-color: #2ecc71;
+}
+
+.add-ing-btn {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 18px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.add-ing-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.edit-modal-footer {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #eee;
+}
+
+.save-meal-edit-btn {
+  background: linear-gradient(135deg, #27ae60, #2ecc71);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.save-meal-edit-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.cancel-meal-edit-btn {
+  background: #f0f0f0;
+  color: #555;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cancel-meal-edit-btn:hover { background: #e0e0e0; }
+
+@media (max-width: 620px) {
+  .add-ingredient-grid,
+  .add-ingredient-labels {
+    grid-template-columns: 1fr 1fr;
+  }
+  .edit-meal-info-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .edit-meal-modal-content {
+    padding: 14px;
+    max-height: 95vh;
+  }
+  .edit-ingredient-table {
+    font-size: 11px;
+  }
+  .edit-amount-input {
+    width: 58px;
+  }
+}
+
 /* Daily Tracker */
 .daily-tracker {
   background: white;
