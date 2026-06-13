@@ -1,0 +1,20 @@
+{
+  "scripts": {
+    "android:phone": "cap copy android && cap run android",
+    "android:phone:sync": "cap sync android && cap run android",
+    "android:release:apk": "cap copy android && cd android && ./gradlew assembleRelease",
+    "android:release:aab": "cap copy android && cd android && ./gradlew bundleRelease",
+    "android:release:ship": "node tools/release-ship.js",
+    "android:release:ship:sync": "node tools/release-ship.js --sync",
+    "android:release:install": "node tools/release-install.js",
+    "android:release:install:sync": "node tools/release-install.js --sync",
+    "android:release:install:clean": "node tools/release-install.js --clean-on-mismatch",
+    "android:release:install:emu": "node tools/release-install.js --device emulator-5554",
+    "android:release:install:emu:clean": "node tools/release-install.js --device emulator-5554 --clean-on-mismatch"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/cli": "^8.4.0",
+    "@capacitor/core": "^8.4.0"
+  }
+}
