@@ -2,14 +2,18 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { spawnSync } = require("child_process");
 
 const projectRoot = path.resolve(__dirname, "..");
+const androidRoot = path.join(projectRoot, "android");
 const appGradlePath = path.join(projectRoot, "android", "app", "build.gradle");
+const localPropertiesPath = path.join(androidRoot, "local.properties");
 const updaterConfigPaths = [
   path.join(projectRoot, "script", "appUpdater.js"),
   path.join(projectRoot, "www", "script", "appUpdater.js"),
 ];
+const updaterSourcePath = path.join(projectRoot, "www", "script", "appUpdater.js");
 const releaseApkPath = path.join(
   projectRoot,
   "android",
@@ -36,8 +40,9 @@ if (showHelp) {
 function run(command, commandArgs, options = {}) {
   const result = spawnSync(command, commandArgs, {
     cwd: options.cwd || projectRoot,
-    stdio: "inherit",
+    stdio: options.captureOutput ? "pipe" : "inherit",
     shell: false,
+    encoding: "utf8",
   });
 
   if (result.error) {
@@ -49,6 +54,138 @@ function run(command, commandArgs, options = {}) {
   }
 
   return result;
+}
+
+function parseLocalSdkDir() {
+  if (!fs.existsSync(localPropertiesPath)) {
+    return "";
+  }
+
+  const content = fs.readFileSync(localPropertiesPath, "utf8");
+  const match = content.match(/^sdk\.dir=(.+)$/m);
+  if (!match) {
+    return "";
+  }
+
+  return match[1]
+    .trim()
+    .replace(/\\:/g, ":")
+    .replace(/\\ /g, " ");
+}
+
+function resolveAaptPath() {
+  const candidates = [];
+
+  if (process.env.ANDROID_SDK_ROOT) {
+    candidates.push(path.join(process.env.ANDROID_SDK_ROOT, "build-tools"));
+  }
+
+  if (process.env.ANDROID_HOME) {
+    candidates.push(path.join(process.env.ANDROID_HOME, "build-tools"));
+  }
+
+  const localSdkDir = parseLocalSdkDir();
+  if (localSdkDir) {
+    candidates.push(path.join(localSdkDir, "build-tools"));
+  }
+
+  for (const buildToolsRoot of candidates) {
+    if (!buildToolsRoot || !fs.existsSync(buildToolsRoot)) continue;
+    const versions = fs.readdirSync(buildToolsRoot).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    for (let i = versions.length - 1; i >= 0; i -= 1) {
+      const aaptPath = path.join(buildToolsRoot, versions[i], "aapt");
+      if (fs.existsSync(aaptPath)) {
+        return aaptPath;
+      }
+    }
+  }
+
+  return "aapt";
+}
+
+function readApkVersion() {
+  const aaptPath = resolveAaptPath();
+  const result = run(aaptPath, ["dump", "badging", releaseApkPath], {
+    captureOutput: true,
+    allowFailure: true,
+  });
+
+  if (result.status !== 0) {
+    const output = `${result.stdout || ""}${result.stderr || ""}`.trim();
+    throw new Error(`Failed to inspect APK with '${aaptPath}'. ${output || "Install Android build-tools or add aapt to PATH."}`);
+  }
+
+  const output = `${result.stdout || ""}${result.stderr || ""}`;
+  const versionCodeMatch = output.match(/versionCode='(\d+)'/);
+  const versionNameMatch = output.match(/versionName='([^']+)'/);
+
+  if (!versionCodeMatch || !versionNameMatch) {
+    throw new Error("Could not parse versionCode/versionName from built APK.");
+  }
+
+  return {
+    versionCode: Number(versionCodeMatch[1]),
+    versionName: versionNameMatch[1],
+    aaptPath,
+  };
+}
+
+function assertBuiltApkVersion(expected) {
+  const actual = readApkVersion();
+  if (actual.versionCode !== expected.newCode || actual.versionName !== expected.newName) {
+    throw new Error(
+      [
+        "Built APK version mismatch.",
+        `Expected versionCode=${expected.newCode}, versionName=${expected.newName}`,
+        `Actual   versionCode=${actual.versionCode}, versionName=${actual.versionName}`,
+      ].join(" ")
+    );
+  }
+
+  console.log(`[release] Verified APK metadata with ${actual.aaptPath}`);
+  console.log(`[release] APK versionCode/versionName -> ${actual.versionCode}/${actual.versionName}`);
+}
+
+function sha256(value) {
+  return crypto.createHash("sha256").update(value).digest("hex");
+}
+
+function extractAssetFromApk(assetPathInApk) {
+  const unzipResult = run("unzip", ["-p", releaseApkPath, assetPathInApk], {
+    captureOutput: true,
+    allowFailure: true,
+  });
+
+  if (unzipResult.status !== 0) {
+    const output = `${unzipResult.stdout || ""}${unzipResult.stderr || ""}`.trim();
+    throw new Error(`Failed to read '${assetPathInApk}' from APK. ${output}`);
+  }
+
+  return unzipResult.stdout || "";
+}
+
+function assertBundledUpdaterAssetFresh() {
+  if (!fs.existsSync(updaterSourcePath)) {
+    throw new Error(`Updater source file not found: ${updaterSourcePath}`);
+  }
+
+  const localSource = fs.readFileSync(updaterSourcePath, "utf8");
+  const bundledSource = extractAssetFromApk("assets/public/script/appUpdater.js");
+
+  const localHash = sha256(localSource);
+  const bundledHash = sha256(bundledSource);
+
+  if (localHash !== bundledHash) {
+    throw new Error(
+      [
+        "Bundled appUpdater.js is stale.",
+        "APK content does not match local www/script/appUpdater.js.",
+        "Run 'npx cap copy android' (or --sync) and rebuild.",
+      ].join(" ")
+    );
+  }
+
+  console.log("[release] Verified bundled assets/public/script/appUpdater.js matches local www/script/appUpdater.js");
 }
 
 function bumpVersionName(versionName) {
@@ -128,7 +265,8 @@ function tryInstallReleaseApk() {
 }
 
 try {
-  const { newName } = bumpAndroidVersion();
+  const bumpedVersion = bumpAndroidVersion();
+  const { newName } = bumpedVersion;
   syncUpdaterCurrentVersion(newName);
 
   if (shouldSync) {
@@ -141,6 +279,9 @@ try {
 
   console.log("[release] Building signed release APK...");
   run("./gradlew", ["assembleRelease"], { cwd: path.join(projectRoot, "android") });
+
+  assertBuiltApkVersion(bumpedVersion);
+  assertBundledUpdaterAssetFresh();
 
   if (!skipInstall) {
     tryInstallReleaseApk();

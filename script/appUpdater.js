@@ -9,7 +9,7 @@
     manifestUrl: "",
 
     // Keep this in sync with android/app/build.gradle versionName.
-    currentVersion: "1.5",
+    currentVersion: "1.7",
 
     autoCheckOnLaunch: true,
     autoCheckIntervalHours: 12,
@@ -77,9 +77,30 @@
     };
   }
 
+  function scoreApkAsset(asset, normalizedTagVersion) {
+    const name = String(asset && asset.name ? asset.name : "").toLowerCase();
+    if (!name.endsWith(".apk")) return Number.NEGATIVE_INFINITY;
+
+    let score = 0;
+    if (normalizedTagVersion && name.includes(normalizedTagVersion.toLowerCase())) score += 20;
+    if (name.includes("release")) score += 10;
+    if (name.includes("signed")) score += 5;
+    if (name.includes("debug")) score -= 15;
+    if (name.includes("unsigned")) score -= 10;
+
+    const size = Number(asset && asset.size ? asset.size : 0);
+    score += Math.floor(size / 1024 / 1024); // Prefer realistic APK sizes when names tie.
+    return score;
+  }
+
   function mapGitHubRelease(data) {
     const assets = Array.isArray(data.assets) ? data.assets : [];
-    const apkAsset = assets.find((asset) => typeof asset.name === "string" && asset.name.toLowerCase().endsWith(".apk"));
+    const normalizedTagVersion = normalizeVersion(data.tag_name || data.name || "");
+    const apkAssets = assets.filter((asset) => typeof asset.name === "string" && asset.name.toLowerCase().endsWith(".apk"));
+    const apkAsset = apkAssets
+      .map((asset) => ({ asset, score: scoreApkAsset(asset, normalizedTagVersion) }))
+      .sort((a, b) => b.score - a.score)
+      .map((entry) => entry.asset)[0];
 
     return {
       version: data.tag_name || data.name || "",
@@ -90,24 +111,47 @@
     };
   }
 
+  function getCapacitorPlugin(name) {
+    const cap = window.Capacitor;
+    if (!cap || !cap.Plugins) return null;
+    return cap.Plugins[name] || null;
+  }
+
+  async function callCapacitorPlugin(name, method, options) {
+    const cap = window.Capacitor;
+    const plugin = getCapacitorPlugin(name);
+
+    if (plugin && typeof plugin[method] === "function") {
+      return plugin[method](options || {});
+    }
+
+    // Fallback bridge call for plugin access when Plugins[name] is not populated.
+    if (cap && typeof cap.nativePromise === "function") {
+      return cap.nativePromise(name, method, options || {});
+    }
+
+    return null;
+  }
+
   async function resolveCurrentVersion(config) {
     const fallback = config.currentVersion || "0.0.0";
 
     try {
-      const App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
-      if (!App || typeof App.getInfo !== "function") {
-        return fallback;
-      }
-
-      const info = await App.getInfo();
+      const info = await callCapacitorPlugin("App", "getInfo");
       if (info && typeof info.version === "string" && info.version.trim()) {
-        return info.version;
+        return {
+          version: info.version,
+          usedFallback: false,
+        };
       }
     } catch (error) {
       console.warn("[updater] Failed to read runtime app version, using fallback.", error);
     }
 
-    return fallback;
+    return {
+      version: fallback,
+      usedFallback: true,
+    };
   }
 
   async function fetchLatestRelease(config) {
@@ -141,20 +185,23 @@
   }
 
   async function openDownloadUrl(url) {
+    const cacheBuster = `_ts=${Date.now()}`;
+    const withCacheBuster = `${url}${url.includes("?") ? "&" : "?"}${cacheBuster}`;
     const Browser = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
 
     if (Browser && typeof Browser.open === "function") {
-      await Browser.open({ url });
+      await Browser.open({ url: withCacheBuster });
       return;
     }
 
-    const opened = window.open(url, "_blank", "noopener");
+    const opened = window.open(withCacheBuster, "_blank", "noopener");
     if (!opened) {
-      window.location.href = url;
+      window.location.href = withCacheBuster;
     }
   }
 
-  function buildPromptMessage(updateInfo, currentVersion) {
+  function buildPromptMessage(updateInfo, currentVersion, options) {
+    const usedFallback = !!(options && options.usedFallback);
     const notes = (updateInfo.releaseNotes || "").trim().split("\n").slice(0, 5).join("\n");
 
     const lines = [
@@ -162,6 +209,11 @@
       `Current version: ${normalizeVersion(currentVersion)}`,
       "",
     ];
+
+    if (usedFallback) {
+      lines.push("Note: current version is coming from fallback config. Install @capacitor/app + cap sync for accurate runtime version.");
+      lines.push("");
+    }
 
     if (notes) {
       lines.push("Release notes:");
@@ -185,7 +237,8 @@
     }
 
     try {
-      const installedVersion = await resolveCurrentVersion(config);
+      const versionInfo = await resolveCurrentVersion(config);
+      const installedVersion = versionInfo.version;
       const latest = await fetchLatestRelease(config);
       if (!latest.version) {
         throw new Error("Latest version was missing from update source.");
@@ -205,7 +258,7 @@
         throw new Error("Update source does not provide an APK or release page URL.");
       }
 
-      const shouldInstall = window.confirm(buildPromptMessage(latest, installedVersion));
+      const shouldInstall = window.confirm(buildPromptMessage(latest, installedVersion, { usedFallback: versionInfo.usedFallback }));
       if (!shouldInstall) {
         return { status: "cancelled", latest };
       }
