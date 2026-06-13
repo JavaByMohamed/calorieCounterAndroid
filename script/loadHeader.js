@@ -1,11 +1,42 @@
 function loadHeader() {
   fetch("header.html")
-    .then((response) => response.text())
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Failed to load header.html (status ${response.status})`);
+      }
+      return response.text();
+    })
     .then((data) => {
       document.querySelector("header").innerHTML = data;
       initHeaderLogout();
+      return ensureAppUpdaterLoaded();
+    })
+    .then(() => {
+      if (window.AppUpdater && typeof window.AppUpdater.init === "function") {
+        window.AppUpdater.init();
+      }
     })
     .catch((error) => console.error("Error loading header:", error));
+}
+
+function ensureAppUpdaterLoaded() {
+  if (window.AppUpdater) {
+    return Promise.resolve();
+  }
+
+  const existingScript = document.querySelector("script[data-app-updater='1']");
+  if (existingScript) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "script/appUpdater.js";
+    script.dataset.appUpdater = "1";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load app updater script."));
+    document.body.appendChild(script);
+  });
 }
 
 function getHeaderCookie(name) {
