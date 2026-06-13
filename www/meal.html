@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Add a Meal</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="script/i18n.js"></script>
+</head>
+<body>
+  <header></header>
+
+  <main>
+    <section class="meal-form">
+      <h3 data-i18n="meal.addMeal">Add a Meal</h3>
+
+      <!-- 🇸🇪 Swedish Food API Search -->
+      <div class="api-search-section">
+        <h4 data-i18n="meal.searchDb">🔍 Search Food Database</h4>
+        <p><small data-i18n="meal.searchDesc">Search for products from Swedish grocery stores, the official Livsmedelsverket database, or FatSecret's large food database.</small></p>
+
+        <div class="api-source-toggle">
+          <button type="button" class="api-source-btn active" data-source="stores" data-i18n="meal.storeProducts">🏪 Store Products</button>
+          <button type="button" class="api-source-btn" data-source="fatsecret" data-i18n="meal.fatSecret">🍽️ FatSecret</button>
+          <button type="button" class="api-source-btn" data-source="livsmedelsverket" data-i18n="meal.livsmedelsverket">📋 Livsmedelsverket</button>
+        </div>
+
+        <div class="form-group" style="position:relative;">
+          <label for="apiSearch" data-i18n="meal.searchFood">Search food item</label>
+          <input type="text" id="apiSearch" data-i18n-placeholder="meal.searchPlaceholder" placeholder="e.g. kycklingbröst, havregryn, kvarg..." autocomplete="off" />
+          <div id="apiSearchResults" class="ingredient-dropdown-list" style="display:none;"></div>
+        </div>
+        <div id="apiNutritionPreview" style="display:none;" class="nutrition-preview">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;" />
+
+      <!-- ➕ Quick Add Ingredient (inline) -->
+      <div class="inline-add-ingredient">
+        <h4 data-i18n="meal.cantFind">➕ Can't find your ingredient? Create it here</h4>
+        <form id="inlineAddIngredientForm">
+          <div class="form-group">
+            <label for="newIngName" data-i18n="meal.newName">Name</label>
+            <input type="text" id="newIngName" data-i18n-placeholder="meal.newNamePlaceholder" placeholder="e.g. turkey mince" required />
+          </div>
+          <div class="inline-macro-grid">
+            <div class="form-group">
+              <label for="newIngCal" data-i18n="meal.newCal">Calories</label>
+              <input type="number" id="newIngCal" step="0.1" data-i18n-placeholder="meal.per100g" placeholder="per 100g" required />
+            </div>
+            <div class="form-group">
+              <label for="newIngFat" data-i18n="meal.newFat">Fat (g)</label>
+              <input type="number" id="newIngFat" step="0.1" data-i18n-placeholder="meal.per100g" placeholder="per 100g" required />
+            </div>
+            <div class="form-group">
+              <label for="newIngCarbs" data-i18n="meal.newCarbs">Carbs (g)</label>
+              <input type="number" id="newIngCarbs" step="0.1" data-i18n-placeholder="meal.per100g" placeholder="per 100g" required />
+            </div>
+            <div class="form-group">
+              <label for="newIngProtein" data-i18n="meal.newProtein">Protein (g)</label>
+              <input type="number" id="newIngProtein" step="0.1" data-i18n-placeholder="meal.per100g" placeholder="per 100g" required />
+            </div>
+            <div class="form-group">
+              <label for="newIngFiber" data-i18n="meal.newFiber">Fiber (g)</label>
+              <input type="number" id="newIngFiber" step="0.1" value="0" data-i18n-placeholder="meal.per100g" placeholder="per 100g" />
+            </div>
+          </div>
+          <button type="submit" data-i18n="meal.addIngUse">➕ Add Ingredient & Use It</button>
+        </form>
+      </div>
+
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;" />
+
+      <form id="mealForm">
+        <div class="form-group">
+          <label for="ingredient" data-i18n="meal.ingredient">Ingredient</label>
+          <select id="ingredient" required>
+            <!-- Options will be dynamically populated -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="amount" data-i18n="meal.amount">Amount</label>
+          <div class="amount-unit-wrapper">
+            <input type="number" id="amount" data-i18n-placeholder="meal.amountPlaceholder" placeholder="e.g. 2 slices or 150g" step="0.1" required />
+            <select id="amountUnit" title="Unit">
+              <option value="grams">grams</option>
+            </select>
+          </div>
+          <small id="unitConversionHint" style="display:none; color:#666;"></small>
+        </div>
+        <button type="submit" data-i18n="meal.addToMeal">Add to Meal</button>
+      </form>
+    </section>
+
+    <section class="meal-summary">
+      <h3 data-i18n="meal.summary">Meal Summary</h3>
+      <div id="mealOutput">
+        <p data-i18n="meal.noIngredients">No ingredients added yet.</p>
+      </div>
+    </section>
+
+    <section class="save-meal-section">
+      <h3 data-i18n="meal.saveMeal">Save Meal</h3>
+      <div class="form-group">
+        <label for="mealName" data-i18n="meal.mealName">Meal Name</label>
+        <input type="text" id="mealName" data-i18n-placeholder="meal.mealNamePlaceholder" placeholder="e.g. Monday Lunch" />
+      </div>
+      <div class="form-group">
+        <label for="mealServings" data-i18n="meal.servings">Servings (portions)</label>
+        <input type="number" id="mealServings" min="1" step="1" value="1" data-i18n-placeholder="meal.servingsPlaceholder" placeholder="e.g. 2" />
+        <small data-i18n="meal.servingsNote">How many portions does this meal make? Macros per serving will be calculated automatically.</small>
+      </div>
+      <button id="saveMealBtn" data-i18n="meal.saveToHistory">💾 Save Meal to History</button>
+
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;" />
+
+      <h3 data-i18n="meal.addToTracker">📅 Add to Today's Tracker</h3>
+      <p><small data-i18n="meal.addToTrackerDesc">Log this meal as eaten today. This will save it to your daily intake tracker. Requires login.</small></p>
+      <div class="form-group">
+        <label for="trackerServings" data-i18n="meal.servingsEaten">Servings eaten</label>
+        <input type="number" id="trackerServings" min="1" step="1" value="1" data-i18n-placeholder="meal.servingsEatenPlaceholder" placeholder="e.g. 1" />
+        <small data-i18n="meal.servingsEatenNote">How many servings of this meal did you eat?</small>
+      </div>
+      <button id="addToTrackerBtn" data-i18n="meal.addToTrackerBtn">📅 Add to Today's Tracker</button>
+
+      <p style="margin-top: 15px;"><a href="meal-history.html" data-i18n="meal.viewHistory">📋 View Meal History</a> | <a href="daily-tracker.html" data-i18n="meal.viewTracker">📊 View Daily Tracker</a></p>
+    </section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.text">© 2025 calorieCounter. Built for fitness and nutrition enthusiasts.</p>
+  </footer>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="script/firebaseStorage.js"></script>
+  <script src="script/dropdownMenu.js"></script>
+  <script src="script/loadHeader.js"></script>
+  <script type="module" src="script/mealForm.js"></script>
+</body>
+</html>
+

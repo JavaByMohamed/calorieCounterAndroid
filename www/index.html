@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>calorieCounter</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="script/i18n.js"></script>
+</head>
+<body>
+    <header></header>
+
+  <main>
+    <!-- Active User Bar -->
+    <section class="active-user-bar" id="activeUserBar" style="display:none;">
+      <span data-i18n="home.loggedInAs">👤 Logged in as</span> <strong id="activeUserName"></strong>
+      <div>
+        <button id="adminBtn" class="secondary-btn" style="margin-right:8px;" data-i18n="home.admin">🔐 Admin</button>
+        <button id="logoutBtn" class="logout-btn" data-i18n="home.logout">Log Out</button>
+      </div>
+    </section>
+
+    <!-- Login / Create Account (shown when not logged in) -->
+    <section class="intro" id="loginSection">
+      <h2 data-i18n="home.welcome">Welcome to CalorieCounter 👋</h2>
+      <p data-i18n="home.welcomeDesc">Log in or create your account to start tracking your nutrition and workouts.</p>
+
+      <div class="login-form">
+        <div class="form-group">
+          <label for="loginUsername" data-i18n="home.username">Username or Email</label>
+          <input type="text" id="loginUsername" data-i18n-placeholder="home.usernamePlaceholder" placeholder="Enter your username or email" />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword" data-i18n="home.password">Password</label>
+          <input type="password" id="loginPassword" data-i18n-placeholder="home.passwordPlaceholder" placeholder="Enter your password" />
+        </div>
+        <div class="login-buttons">
+          <button id="loginBtn" data-i18n="home.login">🔑 Log In</button>
+          <button id="showCreateBtn" class="secondary-btn" data-i18n="home.createAccount">+ Create Account</button>
+        </div>
+        <p class="forgot-password-link"><a href="#" id="forgotPasswordLink" data-i18n="home.forgotPassword">Forgot your password?</a></p>
+      </div>
+
+      <!-- Forgot Password Form (hidden by default) -->
+      <div id="forgotPasswordForm" style="display:none;" class="new-user-form">
+        <h4 data-i18n="home.resetTitle">🔒 Reset Your Password</h4>
+        <p data-i18n="home.resetDesc">Enter the email address associated with your account. We'll send a verification code to reset your password.</p>
+        <div class="form-group">
+          <label for="resetEmail" data-i18n="home.emailAddress">Email Address</label>
+          <input type="email" id="resetEmail" data-i18n-placeholder="home.emailPlaceholder" placeholder="Enter your registered email" required />
+        </div>
+        <button id="sendResetCodeBtn" data-i18n="home.sendResetCode">📧 Send Reset Code</button>
+        <button id="cancelResetBtn" type="button" data-i18n="home.cancel">Cancel</button>
+
+        <!-- Step 2: Enter code & new password (shown after code is sent) -->
+        <div id="resetCodeSection" style="display:none; margin-top:15px;">
+          <div class="verification-notice">
+            <p data-i18n="home.verificationSent">✅ A 6-digit verification code has been sent to your email.</p>
+            <p class="sim-notice" data-i18n="home.demoNotice">⚠️ <em>Demo mode: The code is shown below since there's no email server.</em></p>
+            <p class="sim-code" id="resetCodeDisplay"></p>
+          </div>
+          <div class="form-group">
+            <label for="resetCode" data-i18n="home.verificationCode">Verification Code</label>
+            <input type="text" id="resetCode" data-i18n-placeholder="home.verificationCodePlaceholder" placeholder="Enter 6-digit code" maxlength="6" required />
+          </div>
+          <div class="form-group">
+            <label for="newPassword" data-i18n="home.newPassword">New Password</label>
+            <input type="password" id="newPassword" data-i18n-placeholder="home.newPasswordPlaceholder" placeholder="Enter new password" required />
+          </div>
+          <div class="form-group">
+            <label for="newPasswordConfirm" data-i18n="home.confirmNewPassword">Confirm New Password</label>
+            <input type="password" id="newPasswordConfirm" data-i18n-placeholder="home.confirmNewPasswordPlaceholder" placeholder="Repeat new password" required />
+          </div>
+          <button id="confirmResetBtn" data-i18n="home.resetPassword">🔑 Reset Password</button>
+        </div>
+      </div>
+
+      <!-- Email Verification (shown after account creation) -->
+      <div id="emailVerificationForm" style="display:none;" class="new-user-form">
+        <h4 data-i18n="home.verifyEmail">📧 Verify Your Email</h4>
+        <div class="verification-notice">
+          <p>A 6-digit verification code has been sent to <strong id="verifyEmailDisplay"></strong>.</p>
+          <p class="sim-notice" data-i18n="home.demoNotice">⚠️ <em>Demo mode: The code is shown below since there's no email server.</em></p>
+          <p class="sim-code" id="verifyCodeDisplay"></p>
+        </div>
+        <div class="form-group">
+          <label for="verifyCode" data-i18n="home.verifyCodeLabel">Enter Verification Code</label>
+          <input type="text" id="verifyCode" data-i18n-placeholder="home.verificationCodePlaceholder" placeholder="Enter 6-digit code" maxlength="6" required />
+        </div>
+        <button id="confirmVerifyBtn" data-i18n="home.verifyComplete">✅ Verify & Complete Registration</button>
+        <button id="resendVerifyBtn" type="button" class="secondary-btn" data-i18n="home.resendCode">🔄 Resend Code</button>
+      </div>
+
+      <!-- Create account (hidden by default) -->
+      <div id="createAccountForm" style="display:none;" class="new-user-form">
+        <h4 data-i18n="home.createYourAccount">Create Your Account</h4>
+        <div class="form-group">
+          <label for="createUsername" data-i18n="home.usernameLabel">Username</label>
+          <input type="text" id="createUsername" data-i18n-placeholder="home.usernamePlaceholderCreate" placeholder="e.g. John" required />
+        </div>
+        <div class="form-group">
+          <label for="createEmail" data-i18n="home.emailLabel">Email</label>
+          <input type="email" id="createEmail" data-i18n-placeholder="home.emailPlaceholderCreate" placeholder="e.g. john@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="createPassword" data-i18n="home.passwordLabel">Password</label>
+          <input type="password" id="createPassword" data-i18n-placeholder="home.passwordPlaceholderCreate" placeholder="Choose a password" required />
+        </div>
+        <div class="form-group">
+          <label for="createPasswordConfirm" data-i18n="home.confirmPasswordLabel">Confirm Password</label>
+          <input type="password" id="createPasswordConfirm" data-i18n-placeholder="home.confirmPasswordPlaceholder" placeholder="Repeat your password" required />
+        </div>
+        <div class="form-group">
+          <label><span data-i18n="home.healthConditions">Health Conditions</span> <small data-i18n="home.healthConditionsNote">(affects calorie recommendations)</small></label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" id="condHypothyroid" value="hypothyroid" /> <span data-i18n="home.hypothyroid">Hypothyroidism (underactive thyroid)</span></label>
+            <label><input type="checkbox" id="condHyperthyroid" value="hyperthyroid" /> <span data-i18n="home.hyperthyroid">Hyperthyroidism (overactive thyroid)</span></label>
+            <label><input type="checkbox" id="condDiabetes" value="diabetes" /> <span data-i18n="home.diabetes">Diabetes</span></label>
+            <label><input type="checkbox" id="condHighBP" value="highBloodPressure" /> <span data-i18n="home.highBP">High Blood Pressure</span></label>
+          </div>
+          <div class="health-info-box">
+            <h5 data-i18n="home.healthInfoTitle">ℹ️ How do these conditions affect your nutrition goals?</h5>
+            <details>
+              <summary><strong>🦋 Hypothyroidism</strong> (underactive thyroid)</summary>
+              <p>An underactive thyroid slows your metabolism, meaning your body burns fewer calories at rest. Eating the same amount as someone without the condition can lead to weight gain.</p>
+              <ul>
+                <li><strong>Calories:</strong> −200 kcal/day</li>
+                <li><strong>Carbs:</strong> −30g/day</li>
+                <li><strong>Fiber:</strong> +5g/day (helps digestion &amp; satiety)</li>
+              </ul>
+            </details>
+            <details>
+              <summary><strong>🦋 Hyperthyroidism</strong> (overactive thyroid)</summary>
+              <p>An overactive thyroid speeds up your metabolism dramatically, causing rapid weight loss and muscle breakdown if not compensated with extra nutrition.</p>
+              <ul>
+                <li><strong>Calories:</strong> +300 kcal/day</li>
+                <li><strong>Protein:</strong> +20g/day (prevents muscle loss)</li>
+                <li><strong>Carbs:</strong> +30g/day (extra energy)</li>
+              </ul>
+            </details>
+            <details>
+              <summary><strong>🩸 Diabetes</strong></summary>
+              <p>Diabetes impairs your body's ability to regulate blood sugar. High-carb meals cause dangerous blood sugar spikes. A lower-carb, higher-fiber diet helps maintain stable glucose levels.</p>
+              <ul>
+                <li><strong>Carbs:</strong> −50g/day (reduces blood sugar spikes)</li>
+                <li><strong>Fiber:</strong> +5g/day (slows sugar absorption)</li>
+                <li><strong>Fat:</strong> −10g/day (reduces cardiovascular risk)</li>
+              </ul>
+            </details>
+            <details>
+              <summary><strong>❤️ High Blood Pressure</strong></summary>
+              <p>High blood pressure is worsened by excess sodium and saturated fat. Reducing fat intake and keeping sodium below 2300mg/day helps protect your heart and blood vessels.</p>
+              <ul>
+                <li><strong>Fat:</strong> −10g/day</li>
+                <li><strong>Sodium:</strong> Limit to &lt;2300mg/day (not tracked but recommended)</li>
+              </ul>
+            </details>
+          </div>
+        </div>
+        <button id="createAccountBtn" data-i18n="home.createAccountBtn">💾 Create Account</button>
+        <button id="cancelCreateBtn" type="button" data-i18n="home.cancel">Cancel</button>
+      </div>
+    </section>
+
+    <!-- Welcome message (shown when logged in) -->
+    <section class="intro" id="welcomeSection" style="display:none;">
+      <h2 data-i18n="home.trackCalories">Track Your Calories, Achieve Your Goals</h2>
+      <p data-i18n="home.trackDesc">CalorieCounter is your personal nutrition assistant. Effortlessly log your meals, track your calorie intake, and gain insights into your diet.</p>
+    </section>
+
+    <!-- Admin Panel (hidden by default) -->
+    <section class="intro" id="adminSection" style="display:none;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h2 data-i18n="home.adminPanel">🔐 Admin Panel</h2>
+        <button id="closeAdminBtn" class="secondary-btn" data-i18n="home.closeAdmin">✕ Close</button>
+      </div>
+      <p style="margin-bottom:15px;" data-i18n="home.adminDesc">Manage all registered accounts.</p>
+      <div id="adminStats" style="display:flex; gap:15px; margin-bottom:20px; flex-wrap:wrap;"></div>
+      <input type="text" id="adminSearchInput" placeholder="🔍 Search by username or email..." style="width:100%; padding:10px; border-radius:8px; border:1px solid #ddd; margin-bottom:15px;" />
+      <div id="adminAccountList"></div>
+    </section>
+
+    <section class="quick-nav">
+      <h2 data-i18n="home.quickAccess">Quick Access</h2>
+      <div class="nav-cards">
+        <a href="bmi-bmr.html" class="nav-card">
+          <span class="nav-card-icon">⚖️</span>
+          <h3 data-i18n="home.cardBmiBmr">BMI & BMR</h3>
+          <p data-i18n="home.cardBmiBmrDesc">Calculate your body mass index and metabolic rate</p>
+        </a>
+        <a href="ingredients.html" class="nav-card">
+          <span class="nav-card-icon">🥦</span>
+          <h3 data-i18n="home.cardIngredients">Ingredients</h3>
+          <p data-i18n="home.cardIngredientsDesc">Browse, search & manage your ingredient database</p>
+        </a>
+        <a href="meal.html" class="nav-card">
+          <span class="nav-card-icon">🍽️</span>
+          <h3 data-i18n="home.cardAddMeal">Add a Meal</h3>
+          <p data-i18n="home.cardAddMealDesc">Log your meals and track calories</p>
+        </a>
+        <a href="workout.html" class="nav-card">
+          <span class="nav-card-icon">💪</span>
+          <h3 data-i18n="home.cardWorkout">Workout Tracker</h3>
+          <p data-i18n="home.cardWorkoutDesc">Track exercises, sets, reps & weights</p>
+        </a>
+        <a href="meal-history.html" class="nav-card">
+          <span class="nav-card-icon">📋</span>
+          <h3 data-i18n="home.cardMealHistory">Meal History</h3>
+          <p data-i18n="home.cardMealHistoryDesc">See what everyone is eating for inspiration</p>
+        </a>
+        <a href="daily-tracker.html" class="nav-card">
+          <span class="nav-card-icon">📊</span>
+          <h3 data-i18n="home.cardDailyTracker">My Daily Tracker</h3>
+          <p data-i18n="home.cardDailyTrackerDesc">Your personal daily meals, macros & progress</p>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.text">© 2025 calorieCounter. Built for fitness and nutrition enthusiasts.</p>
+  </footer>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="script/firebaseStorage.js"></script>
+  <script src="script/loadHeader.js"></script>
+  <script src="script/dropdownMenu.js"></script>
+  <script src="script/emailService.js"></script>
+  <script src="script/homeUser.js"></script>
+</body>
+</html>
+

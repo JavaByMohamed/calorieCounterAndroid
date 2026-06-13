@@ -14,7 +14,10 @@ android/keystore.properties
 *.jks
 *.keystore
 
-
+# IDE / local editor state
 .idea/
 android/.idea/
-android/keystore.properties
+*.iml
+
+# macOS
+.DS_Store

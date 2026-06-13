@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workout Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="script/i18n.js"></script>
+</head>
+<body>
+  <header></header>
+
+  <main>
+    <section class="workout-tracker">
+      <h2 data-i18n="workout.title">Workout Tracker</h2>
+
+      <div class="form-group">
+        <label for="workoutUsername" data-i18n="workout.username">Username</label>
+        <select id="workoutUsername">
+          <option value="" data-i18n="workout.selectUser">-- Select user --</option>
+        </select>
+        <button id="loadUserBtn" data-i18n="workout.loadUser">Load User Data</button>
+      </div>
+
+      <div id="workoutContent" style="display:none;">
+        <h3 data-i18n="workout.logExercise">Log Exercise</h3>
+        <form id="exerciseForm">
+          <div class="form-group">
+            <label for="muscleGroup" data-i18n="workout.muscleGroup">Muscle Group</label>
+            <select id="muscleGroup" required>
+              <option value="" data-i18n="workout.selectMuscle">-- Select --</option>
+              <option value="chest" data-i18n="workout.chest">Chest</option>
+              <option value="back" data-i18n="workout.back">Back</option>
+              <option value="shoulders" data-i18n="workout.shoulders">Shoulders</option>
+              <option value="biceps" data-i18n="workout.biceps">Biceps</option>
+              <option value="triceps" data-i18n="workout.triceps">Triceps</option>
+              <option value="legs" data-i18n="workout.legs">Legs</option>
+              <option value="glutes" data-i18n="workout.glutes">Glutes</option>
+              <option value="abs" data-i18n="workout.abs">Abs</option>
+              <option value="forearms" data-i18n="workout.forearms">Forearms</option>
+              <option value="calves" data-i18n="workout.calves">Calves</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="exerciseName" data-i18n="workout.exercise">Exercise</label>
+            <select id="exerciseName" required>
+              <option value="" disabled selected data-i18n="workout.selectMuscleFirst">-- Select a muscle group first --</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="exerciseWeight" data-i18n="workout.weight">Weight (kg)</label>
+            <input type="number" id="exerciseWeight" step="0.5" data-i18n-placeholder="workout.weightPlaceholder" placeholder="e.g. 60" required />
+          </div>
+
+          <div class="form-group">
+            <label for="exerciseSets" data-i18n="workout.sets">Sets</label>
+            <input type="number" id="exerciseSets" min="1" data-i18n-placeholder="workout.setsPlaceholder" placeholder="e.g. 4" required />
+          </div>
+
+          <div class="form-group">
+            <label for="exerciseReps" data-i18n="workout.reps">Reps</label>
+            <input type="number" id="exerciseReps" min="1" data-i18n-placeholder="workout.repsPlaceholder" placeholder="e.g. 10" required />
+          </div>
+
+          <div class="form-group">
+            <label data-i18n="workout.date">Date</label>
+            <div class="date-toggle">
+              <label><input type="radio" name="dateOption" value="now" checked onchange="toggleDateInput()" /> <span data-i18n="workout.dateToday">Today</span></label>
+              <label><input type="radio" name="dateOption" value="manual" onchange="toggleDateInput()" /> <span data-i18n="workout.dateChoose">Choose Date</span></label>
+            </div>
+            <input type="date" id="exerciseDate" style="display:none;" />
+          </div>
+
+          <button type="submit" data-i18n="workout.saveExercise">Save Exercise</button>
+        </form>
+
+        <div class="workout-history">
+          <h3 data-i18n="workout.history">Workout History</h3>
+          <div class="form-group">
+            <label for="filterMuscle" data-i18n="workout.filterMuscle">Filter by Muscle Group</label>
+            <select id="filterMuscle">
+              <option value="all" data-i18n="workout.all">All</option>
+              <option value="chest" data-i18n="workout.chest">Chest</option>
+              <option value="back" data-i18n="workout.back">Back</option>
+              <option value="shoulders" data-i18n="workout.shoulders">Shoulders</option>
+              <option value="biceps" data-i18n="workout.biceps">Biceps</option>
+              <option value="triceps" data-i18n="workout.triceps">Triceps</option>
+              <option value="legs" data-i18n="workout.legs">Legs</option>
+              <option value="glutes" data-i18n="workout.glutes">Glutes</option>
+              <option value="abs" data-i18n="workout.abs">Abs</option>
+              <option value="forearms" data-i18n="workout.forearms">Forearms</option>
+              <option value="calves" data-i18n="workout.calves">Calves</option>
+            </select>
+          </div>
+          <div id="workoutHistoryList"></div>
+        </div>
+
+        <div class="workout-plans-section">
+          <h3 data-i18n="workout.plans">📋 Workout Plans</h3>
+          <p><small data-i18n="workout.plansDesc">Create custom workout plans, save today's workout as a plan, or start a session from a saved plan.</small></p>
+
+          <!-- Tab navigation for plans -->
+          <div class="plan-tabs">
+            <button class="plan-tab active" data-tab="my-plans" data-i18n="workout.myPlans">My Plans</button>
+            <button class="plan-tab" data-tab="create-plan" data-i18n="workout.createPlan">➕ Create Plan</button>
+            <button class="plan-tab" data-tab="save-today" data-i18n="workout.saveToday">📅 Save Today</button>
+          </div>
+
+          <!-- Tab: My Plans -->
+          <div class="plan-tab-content active" id="tab-my-plans">
+            <div id="workoutPlansContainer" style="margin-top: 15px;">
+              <p data-i18n="workout.noPlans">No workout plans created yet.</p>
+            </div>
+          </div>
+
+          <!-- Tab: Create Custom Plan -->
+          <div class="plan-tab-content" id="tab-create-plan">
+            <div class="plan-builder">
+              <div class="form-group">
+                <label for="customPlanName" data-i18n="workout.planName">Plan Name</label>
+                <input type="text" id="customPlanName" data-i18n-placeholder="workout.planNamePlaceholder" placeholder="e.g. Push Day, Leg Day, Upper Body..." />
+              </div>
+
+              <div class="plan-builder-exercise-form">
+                <h4 data-i18n="workout.addExercisePlan">Add Exercise to Plan</h4>
+                <div class="plan-exercise-row">
+                  <div class="form-group">
+                    <label for="planMuscleGroup" data-i18n="workout.muscleGroup">Muscle Group</label>
+                    <select id="planMuscleGroup">
+                      <option value="" data-i18n="workout.selectMuscle">-- Select --</option>
+                      <option value="chest" data-i18n="workout.chest">Chest</option>
+                      <option value="back" data-i18n="workout.back">Back</option>
+                      <option value="shoulders" data-i18n="workout.shoulders">Shoulders</option>
+                      <option value="biceps" data-i18n="workout.biceps">Biceps</option>
+                      <option value="triceps" data-i18n="workout.triceps">Triceps</option>
+                      <option value="legs" data-i18n="workout.legs">Legs</option>
+                      <option value="glutes" data-i18n="workout.glutes">Glutes</option>
+                      <option value="abs" data-i18n="workout.abs">Abs</option>
+                      <option value="forearms" data-i18n="workout.forearms">Forearms</option>
+                      <option value="calves" data-i18n="workout.calves">Calves</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="planExerciseName" data-i18n="workout.exercise">Exercise</label>
+                    <select id="planExerciseName">
+                      <option value="" disabled selected data-i18n="workout.selectMuscleFirst">-- Select a muscle group first --</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="planSets" data-i18n="workout.planSets">Sets</label>
+                    <input type="number" id="planSets" min="1" data-i18n-placeholder="workout.setsPlaceholder" placeholder="e.g. 4" />
+                  </div>
+                  <div class="form-group">
+                    <label for="planReps" data-i18n="workout.planReps">Reps</label>
+                    <input type="number" id="planReps" min="1" data-i18n-placeholder="workout.repsPlaceholder" placeholder="e.g. 10" />
+                  </div>
+                  <div class="form-group">
+                    <label for="planWeight"><span data-i18n="workout.planWeight">Weight (kg)</span> <small data-i18n="workout.planWeightOptional">(optional)</small></label>
+                    <input type="number" id="planWeight" step="0.5" data-i18n-placeholder="workout.planWeightPlaceholder" placeholder="Fill in later" />
+                  </div>
+                </div>
+                <button type="button" id="addExerciseToPlanBtn" data-i18n="workout.addExerciseBtn">➕ Add Exercise</button>
+              </div>
+
+              <div class="plan-builder-preview">
+                <h4 data-i18n="workout.planExercises">Plan Exercises</h4>
+                <div id="planBuilderList">
+                  <p class="empty-plan-msg" data-i18n="workout.emptyPlan">No exercises added yet. Start building your plan above.</p>
+                </div>
+              </div>
+
+              <button type="button" id="saveCustomPlanBtn" class="save-custom-plan-btn" data-i18n="workout.savePlan">💾 Save Plan</button>
+            </div>
+          </div>
+
+          <!-- Tab: Save Today -->
+          <div class="plan-tab-content" id="tab-save-today">
+            <div class="form-group">
+              <label for="planName" data-i18n="workout.planName">Plan Name</label>
+              <input type="text" id="planName" data-i18n-placeholder="workout.planNamePlaceholder" placeholder="e.g. Push Day, Leg Day..." />
+            </div>
+            <button onclick="saveTodayAsPlan()" data-i18n="workout.saveTodayBtn">💾 Save Today's Workout as Plan</button>
+          </div>
+        </div>
+
+        <!-- Active Workout Session (shown when using a plan) -->
+        <div id="activeWorkoutSession" class="active-workout-session" style="display:none;">
+          <h3 data-i18n="workout.activeSession">🏋️ Active Workout Session</h3>
+          <p class="session-plan-name"></p>
+          <div id="sessionExerciseList"></div>
+          <div class="session-actions">
+            <button id="finishSessionBtn" class="finish-session-btn" data-i18n="workout.finishSession">✅ Finish & Log Workout</button>
+            <button id="cancelSessionBtn" class="cancel-session-btn" data-i18n="workout.cancelSession">✕ Cancel Session</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.text">&copy; 2025 calorieCounter. Built for fitness and nutrition enthusiasts.</p>
+  </footer>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="script/firebaseStorage.js"></script>
+  <script src="script/loadHeader.js"></script>
+  <script src="script/dropdownMenu.js"></script>
+  <script src="script/workout.js"></script>
+</body>
+</html>
+

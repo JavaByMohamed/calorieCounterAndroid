@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meal History</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="script/i18n.js"></script>
+</head>
+<body>
+  <header></header>
+
+  <main>
+    <section class="meal-history">
+      <h3 data-i18n="history.title">📋 Saved Meals</h3>
+      <p class="feed-subtitle" data-i18n="history.subtitle">All saved meal recipes — reuse them anytime! 🍽️</p>
+      <div class="history-filters">
+        <label for="searchMeal" data-i18n="history.search">Search:</label>
+        <input type="text" id="searchMeal" data-i18n-placeholder="history.searchPlaceholder" placeholder="Search meal name..." autocomplete="off" />
+        <label for="filterDate" data-i18n="history.filterDate">Filter by date:</label>
+        <input type="date" id="filterDate" />
+        <button id="clearFilterBtn" data-i18n="history.showAll">Show All</button>
+      </div>
+      <div id="dailySummary"></div>
+      <div id="historyOutput">
+        <p data-i18n="history.noMeals">No saved meals yet.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.text">© 2025 calorieCounter. Built for fitness and nutrition enthusiasts.</p>
+  </footer>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="script/firebaseStorage.js"></script>
+  <script src="script/dropdownMenu.js"></script>
+  <script src="script/loadHeader.js"></script>
+  <script src="script/mealHistory.js"></script>
+</body>
+</html>
+

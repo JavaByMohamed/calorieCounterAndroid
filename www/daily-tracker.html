@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daily Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="script/i18n.js"></script>
+</head>
+<body>
+  <header></header>
+
+  <main>
+    <!-- Not logged in message -->
+    <section class="daily-tracker" id="notLoggedInSection" style="display:none;">
+      <h3 data-i18n="tracker.pleaseLogin">🔒 Please Log In</h3>
+      <p><span data-i18n="tracker.loginDesc">You need to log in to view your daily tracker.</span> <a href="index.html" data-i18n="tracker.goHome">Go to Home to log in →</a></p>
+    </section>
+
+    <!-- User Profile (only shown for the active user) -->
+    <section class="daily-tracker" id="profileSection" style="display:none;">
+      <h3>👤 <span id="profileUsername"></span><span data-i18n="tracker.profile">'s Profile</span></h3>
+
+      <!-- Edit Goals -->
+      <div id="editGoalsSection">
+        <h4 data-i18n="tracker.macroGoals">📏 Daily Macro Goals</h4>
+        <div class="macro-goals-grid">
+          <div class="form-group">
+            <label for="editCalories" data-i18n="tracker.calories">Calories (kcal)</label>
+            <input type="number" id="editCalories" />
+          </div>
+          <div class="form-group">
+            <label for="editProtein" data-i18n="tracker.protein">Protein (g)</label>
+            <input type="number" id="editProtein" />
+          </div>
+          <div class="form-group">
+            <label for="editFat" data-i18n="tracker.fat">Fat (g)</label>
+            <input type="number" id="editFat" />
+          </div>
+          <div class="form-group">
+            <label for="editCarbs" data-i18n="tracker.carbs">Carbs (g)</label>
+            <input type="number" id="editCarbs" />
+          </div>
+          <div class="form-group">
+            <label for="editFiber" data-i18n="tracker.fiber">Fiber (g)</label>
+            <input type="number" id="editFiber" />
+          </div>
+        </div>
+        <button id="updateGoalsBtn" data-i18n="tracker.updateGoals">✏️ Update Goals</button>
+      </div>
+    </section>
+
+    <!-- User Stats Summary (BMI/BMR/Diet Plan) -->
+    <section class="daily-tracker" id="userStatsSection" style="display:none;">
+      <h3 data-i18n="tracker.profileSummary">📋 Your Profile Summary</h3>
+      <div id="userStatsContent"></div>
+    </section>
+
+    <!-- Date Picker & Daily View -->
+    <section class="daily-tracker" id="trackerContent" style="display:none;">
+      <h3 data-i18n="tracker.dailyView">📅 Daily View</h3>
+      <div class="history-filters">
+        <label for="trackerDate" data-i18n="tracker.date">Date:</label>
+        <input type="date" id="trackerDate" />
+        <button id="todayBtn" data-i18n="tracker.today">Today</button>
+        <button id="prevDayBtn" data-i18n="tracker.prev">◀ Prev</button>
+        <button id="nextDayBtn" data-i18n="tracker.next">Next ▶</button>
+      </div>
+
+      <!-- Donut Chart + Macro Progress -->
+      <div class="tracker-grid">
+        <div class="chart-container">
+          <h4 data-i18n="tracker.macroBreakdown">Macro Breakdown</h4>
+          <canvas id="macroDonut" width="220" height="220"></canvas>
+          <div id="donutLegend" class="donut-legend"></div>
+        </div>
+        <div class="progress-container">
+          <h4 data-i18n="tracker.dailyProgress">Daily Progress</h4>
+          <div id="macroProgress"></div>
+        </div>
+      </div>
+
+      <!-- Meals eaten that day -->
+      <div id="dayMeals">
+        <p data-i18n="tracker.noMeals">No meals logged for this day.</p>
+      </div>
+
+      <!-- Workouts done that day -->
+      <div id="dayWorkouts">
+        <p data-i18n="tracker.noWorkouts">No workouts logged for this day.</p>
+      </div>
+
+      <!-- Recent Days Summary -->
+      <div class="day-history-section">
+        <h4 data-i18n="tracker.last7Days">📆 Last 7 Days Overview</h4>
+        <div id="weekSummary"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.text">© 2025 calorieCounter. Built for fitness and nutrition enthusiasts.</p>
+  </footer>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="script/firebaseStorage.js"></script>
+  <script src="script/dropdownMenu.js"></script>
+  <script src="script/loadHeader.js"></script>
+  <script src="script/dailyTracker.js"></script>
+</body>
+</html>
+

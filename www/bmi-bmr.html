@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BMI and BMR Calculator</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="script/i18n.js"></script>
+</head>
+<body>
+    <header></header>
+
+  <main>
+    <section class="bmi-bmr-calculator">
+      <h2 data-i18n="bmi.title">Calculate Your BMI and BMR</h2>
+      <form id="bmiBmrForm">
+        <div class="form-group">
+          <label for="bmiUsername" data-i18n="bmi.saveResults">Save results to:</label>
+          <select id="bmiUsername" disabled>
+            <option value="" data-i18n="bmi.notLoggedIn">-- Not logged in --</option>
+          </select>
+          <small data-i18n="bmi.saveNote">You can calculate freely without logging in. Log in from the Home page to save results to your profile.</small>
+        </div>
+        <div class="form-group">
+          <label for="gender" data-i18n="bmi.gender">Gender</label>
+          <input type="radio" name="sex" id="sex1" value="m" checked />
+          <span class="rbmark"></span><span data-i18n="bmi.male">Male</span>
+          &nbsp;
+          <input type="radio" name="sex" id="sex2" value="f" />
+          <span class="rbmark"></span><span data-i18n="bmi.female">Female</span>
+        </div>
+
+        <div class="form-group">
+          <label for="age" data-i18n="bmi.age">Age (years)</label>
+          <input type="number" id="age" data-i18n-placeholder="bmi.agePlaceholder" placeholder="e.g. 25 years" required />
+        </div>
+
+        <div class="form-group">
+          <label for="height" data-i18n="bmi.height">Height (cm)</label>
+          <input type="number" id="height" data-i18n-placeholder="bmi.heightPlaceholder" placeholder="e.g. 175 CM" required />
+        </div>
+
+        <div class="form-group">
+          <label for="weight" data-i18n="bmi.weight">Weight (kg)</label>
+          <input type="number" id="weight" data-i18n-placeholder="bmi.weightPlaceholder" placeholder="e.g. 70 KG" required />
+        </div>
+
+        <div class="form-group">
+          <label for="activityLevel" data-i18n="bmi.activityLevel">Activity Level</label>
+          <select id="activityLevel" required>
+            <option value="1.2" data-i18n="bmi.sedentary">Sedentary (little or no exercise)</option>
+            <option value="1.375" data-i18n="bmi.lightlyActive">Lightly active (1-3 days/week)</option>
+            <option value="1.55" selected data-i18n="bmi.moderatelyActive">Moderately active (3-5 days/week)</option>
+            <option value="1.725" data-i18n="bmi.veryActive">Very active (6-7 days/week)</option>
+            <option value="1.9" data-i18n="bmi.extraActive">Extra active (very hard exercise/physical job)</option>
+          </select>
+        </div>
+
+        <button type="submit" data-i18n="bmi.calculate">Calculate BMI and BMR</button>
+      </form>
+
+      <div class="bmi-result">
+        <h3 data-i18n="bmi.yourBmi">Your BMI</h3>
+        <p id="bmiValue"></p>
+        <p id="bmiCategory"></p>
+        <p id="bmiAdvice"></p>
+      </div>
+
+      <div class="bmr-result">
+        <h3 data-i18n="bmi.yourBmr">Your BMR</h3>
+        <p><strong data-i18n="bmi.bmr">BMR:</strong> <span id="bmrValue"></span> <span data-i18n="bmi.kcalDay">kcal/day</span></p>
+        <p><strong data-i18n="bmi.tdee">TDEE:</strong> <span id="tdeeValue"></span> <span data-i18n="bmi.kcalDay">kcal/day</span></p>
+        <p id="bmrAdvice"></p>
+      </div>
+
+      <div id="calorieTargetSelection" style="display: none;" class="calorie-target">
+        <h3 data-i18n="bmi.chooseTarget">Choose Your Calorie Target</h3>
+        <p data-i18n="bmi.chooseTargetDesc">Select which value to base your diet plan on:</p>
+        <label>
+          <input type="radio" name="calorieTarget" value="bmr" />
+          <span id="bmrLabel" data-i18n="bmi.bmrOption"><strong>BMR</strong> — Use if you want a strict deficit (rest-level calories)</span>
+        </label>
+        <br/><br/>
+        <label>
+          <input type="radio" name="calorieTarget" value="tdee" checked />
+          <span id="tdeeLabel" data-i18n="bmi.tdeeOption"><strong>TDEE</strong> — Use for maintenance (includes activity)</span>
+        </label>
+      </div>
+    </section>
+
+    <section class="diet-options">
+      <div id="dietResults">
+        <!-- Diet options will be dynamically populated here -->
+      </div>
+      <div id="saveDietSection" style="display:none;" class="save-diet-section">
+        <h3 data-i18n="bmi.saveDiet">💾 Save Diet Plan to Your Profile</h3>
+        <div class="form-group">
+          <label for="selectedDietPlan" data-i18n="bmi.choosePlan">Choose your plan:</label>
+          <select id="selectedDietPlan">
+            <option value="Balanced Diet (Maintenance)" data-i18n="bmi.balanced">Balanced Diet (Maintenance)</option>
+            <option value="High Protein (Fat Loss)" data-i18n="bmi.highProtein">High Protein (Fat Loss)</option>
+            <option value="Muscle Gain (Higher Carbs)" data-i18n="bmi.muscleGain">Muscle Gain (Higher Carbs)</option>
+            <option value="Low Carbs (Keto)" data-i18n="bmi.lowCarbs">Low Carbs (Keto)</option>
+          </select>
+        </div>
+        <button type="button" id="saveDietBtn" data-i18n="bmi.saveBtn">💾 Save BMI, BMR & Diet to Profile</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer.text">© 2025 calorieCounter. Built for fitness and nutrition enthusiasts.</p>
+  </footer>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="script/firebaseStorage.js"></script>
+  <script src="script/loadHeader.js"></script>
+  <script src="script/dropdownMenu.js"></script>
+  <script src="script/bmiBmr.js"></script>
+</body>
+</html>
+
