@@ -42,9 +42,17 @@ Notes:
 
 ### One-command release + install
 
-- `npm run android:release:ship` -> bumps `versionCode` and `versionName`, copies web assets, builds release APK, and installs with `adb` if a device is connected.
+- `npm run android:release:ship` -> bumps `versionCode` and `versionName`, copies web assets, builds release APK, commits version changes, creates git tag, and installs with `adb` if a device is connected.
 - `npm run android:release:ship:sync` -> same as above but uses Capacitor sync.
 - `android:release:ship*` also syncs `currentVersion` in `script/appUpdater.js` and `www/script/appUpdater.js`.
+
+After running this command:
+1. **Version bump & commit**: Local `versionCode`, `versionName`, and `currentVersion` are bumped and committed to git with tag `v{newVersion}`.
+2. **Build**: Signed APK is built with the new version.
+3. **Install**: APK is installed on connected device/emulator if available.
+4. **GitHub release**: Instructions are printed to manually create the release and upload the APK.
+
+If git operations fail (e.g., no push permission), the APK is still built successfully—just follow the printed instructions to manually create the GitHub release.
 
 ### One-command release + install to emulator/device
 
@@ -82,28 +90,48 @@ Set either:
 Updater checks use the installed app version from Capacitor (`App.getInfo().version`) when available, and fall back to `currentVersion`.
 If you use `npm run android:release:ship` or `npm run android:release:ship:sync`, fallback `currentVersion` is synced automatically.
 
-### 2) Publish a release APK
+### 2) Publish a release APK (automated workflow)
+
+**Recommended: Use `npm run android:release:ship`**
+
+This command:
+1. ✅ Bumps `versionCode`, `versionName`, and `currentVersion`
+2. ✅ Builds the signed APK with new version
+3. ✅ Commits changes and creates a git tag (e.g., `v1.8`)
+4. ✅ Provides instructions to create GitHub release
+
+After the script completes, follow the printed instructions to:
+- Visit the GitHub releases page
+- Create a new release from the tag (e.g., `v1.8`)
+- Upload the built APK (`android/app/build/outputs/apk/release/app-release.apk`)
+- Publish the release
+
+### 3) Publish a release APK (manual process)
+
+If git integration fails or you prefer manual control:
 
 For GitHub Releases:
-- Create a release tag (for example `v1.1`)
+- Create a release tag matching your version (e.g., `v1.8`)
 - Upload your signed APK asset (`app-release.apk`) to the release
+- **Ensure tag, APK version, and `currentVersion` all match**
 
 For custom server manifest, return JSON like:
 
 ```json
 {
-  "version": "1.1",
+  "version": "1.8",
   "apkUrl": "https://example.com/downloads/app-release.apk",
   "releaseNotes": "Bug fixes and performance improvements"
 }
 ```
 
-### 3) User flow
+### 4) User flow
 
 - User taps **Check Updates**
-- App compares remote version with `currentVersion`
+- App compares remote version with fallback `currentVersion` (or runtime version from Capacitor)
 - If newer APK exists, app prompts and opens download link
-- Android still requires user confirmation for install (unknown apps permission)
+- Android downloads and prompts user to install
+- User must approve installation (and allow unknown apps if needed)
 
 calorieCounter/
 │

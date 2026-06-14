@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { spawnSync } = require("child_process");
+const { spawnSync, spawn } = require("child_process");
 
 const projectRoot = path.resolve(__dirname, "..");
 const androidRoot = path.join(projectRoot, "android");
@@ -249,47 +249,79 @@ function syncUpdaterCurrentVersion(newVersionName) {
 }
 
 function tryInstallReleaseApk() {
-  if (!fs.existsSync(releaseApkPath)) {
-    console.log(`[release] APK not found at ${releaseApkPath}; skipping install.`);
-    return;
-  }
+   if (!fs.existsSync(releaseApkPath)) {
+     console.log(`[release] APK not found at ${releaseApkPath}; skipping install.`);
+     return;
+   }
 
-  const adbCheck = run("adb", ["get-state"], { allowFailure: true });
-  if (adbCheck.status !== 0) {
-    console.log("[release] No adb device detected; build completed, install skipped.");
-    return;
-  }
+   const adbCheck = run("adb", ["get-state"], { allowFailure: true });
+   if (adbCheck.status !== 0) {
+     console.log("[release] No adb device detected; build completed, install skipped.");
+     return;
+   }
 
-  console.log("[release] Installing release APK on connected device...");
-  run("adb", ["install", "-r", releaseApkPath]);
+   console.log("[release] Installing release APK on connected device...");
+   run("adb", ["install", "-r", releaseApkPath]);
+}
+
+function commitAndTagRelease(versionName) {
+   try {
+     // Check if there are changes to commit
+     const statusResult = run("git", ["status", "--short"], { captureOutput: true });
+     const hasChanges = (statusResult.stdout || "").trim().length > 0;
+
+     if (!hasChanges) {
+       console.log("[release] No changes to commit.");
+       return;
+     }
+
+     console.log(`[release] Committing version bump to ${versionName}...`);
+     run("git", ["add", "android/app/build.gradle", "script/appUpdater.js", "www/script/appUpdater.js"]);
+     run("git", ["commit", "-m", `Release v${versionName}`]);
+
+     console.log(`[release] Creating and pushing git tag v${versionName}...`);
+     run("git", ["tag", "-a", `v${versionName}`, "-m", `Release version ${versionName}`]);
+     run("git", ["push", "origin", "main"]);
+     run("git", ["push", "origin", `v${versionName}`]);
+
+     console.log(`[release] Version committed and tagged. Next: create GitHub release with APK upload.`);
+     console.log(`[release]   - Go to: https://github.com/JavaByMohamed/calorieCounterAndroid/releases/new`);
+     console.log(`[release]   - Tag: v${versionName}`);
+     console.log(`[release]   - Upload: ${path.relative(projectRoot, releaseApkPath)}`);
+   } catch (error) {
+     console.warn(`[release] Git operations failed (likely not a git repo, or push requires auth): ${error.message}`);
+   }
 }
 
 try {
-  const bumpedVersion = bumpAndroidVersion();
-  const { newName } = bumpedVersion;
-  syncUpdaterCurrentVersion(newName);
+   const bumpedVersion = bumpAndroidVersion();
+   const { newName } = bumpedVersion;
+   syncUpdaterCurrentVersion(newName);
 
-  if (shouldSync) {
-    console.log("[release] Running: npx cap sync android");
-    run("npx", ["cap", "sync", "android"]);
-  } else {
-    console.log("[release] Running: npx cap copy android");
-    run("npx", ["cap", "copy", "android"]);
-  }
+   if (shouldSync) {
+     console.log("[release] Running: npx cap sync android");
+     run("npx", ["cap", "sync", "android"]);
+   } else {
+     console.log("[release] Running: npx cap copy android");
+     run("npx", ["cap", "copy", "android"]);
+   }
 
-  console.log("[release] Building signed release APK...");
-  run("./gradlew", ["assembleRelease"], { cwd: path.join(projectRoot, "android") });
+   console.log("[release] Building signed release APK...");
+   run("./gradlew", ["assembleRelease"], { cwd: path.join(projectRoot, "android") });
 
-  assertBuiltApkVersion(bumpedVersion);
-  assertBundledUpdaterAssetFresh();
+   assertBuiltApkVersion(bumpedVersion);
+   assertBundledUpdaterAssetFresh();
 
-  if (!skipInstall) {
-    tryInstallReleaseApk();
-  }
+   // Commit version changes and create git tag
+   commitAndTagRelease(newName);
 
-  console.log("[release] Done.");
+   if (!skipInstall) {
+     tryInstallReleaseApk();
+   }
+
+   console.log("[release] Done.");
 } catch (error) {
-  console.error(`[release] Failed: ${error.message}`);
-  process.exit(1);
+   console.error(`[release] Failed: ${error.message}`);
+   process.exit(1);
 }
 
