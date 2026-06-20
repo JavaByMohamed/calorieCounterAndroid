@@ -9,7 +9,7 @@
     manifestUrl: "",
 
     // Keep this in sync with android/app/build.gradle versionName.
-    currentVersion: "1.8",
+    currentVersion: "1.9",
 
     autoCheckOnLaunch: true,
     autoCheckIntervalHours: 12,
