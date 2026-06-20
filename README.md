@@ -7,6 +7,8 @@ This website is for fitness and nutrition people to keep track of their daily ca
 - `npm run android:live` -> syncs root web files into `www/`, starts a local live server, optionally opens the page in Chrome on macOS, then launches Capacitor Android live reload against that same URL.
 - `npm run android:phone` -> first sync root web files into `www/`, then copy latest Capacitor assets and run on connected Android phone.
 - `npm run android:phone:sync` -> first sync root web files into `www/`, then sync Capacitor plugins/config and run on connected Android phone.
+- `npm run android:release:check-version` -> compares `app-release.apk` version with installed app version on the first connected `adb` device.
+- `npm run android:release:check-version:emu` -> same version comparison, targeting `emulator-5554`.
 
 ### Root files vs `www/`
 

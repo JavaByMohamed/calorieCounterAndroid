@@ -12,7 +12,9 @@
     "android:release:install:sync": "node tools/release-install.js --sync",
     "android:release:install:clean": "node tools/release-install.js --clean-on-mismatch",
     "android:release:install:emu": "node tools/release-install.js --device emulator-5554",
-    "android:release:install:emu:clean": "node tools/release-install.js --device emulator-5554 --clean-on-mismatch"
+    "android:release:install:emu:clean": "node tools/release-install.js --device emulator-5554 --clean-on-mismatch",
+    "android:release:check-version": "node tools/check-apk-installed-version.js",
+    "android:release:check-version:emu": "node tools/check-apk-installed-version.js --device emulator-5554"
   },
   "dependencies": {
     "@capacitor/app": "^8.0.0",
