@@ -276,4 +276,3 @@ function calculateDietOptions(tdee) {
     });
   });
 }
-

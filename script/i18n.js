@@ -175,6 +175,10 @@ const translations = {
     "meal.storeProducts": "🏪 Willys",
     "meal.fatSecret": "🍽️ FatSecret",
     "meal.livsmedelsverket": "📋 Livsmedelsverket",
+    "meal.savedMealSearch": "📚 Find from Meal History",
+    "meal.savedMealSearchDesc": "Search your saved meals here and load them directly into this view.",
+    "meal.searchSavedMeals": "Search saved meals",
+    "meal.searchMealHistory": "Search meal history...",
     "meal.searchFood": "Search food item",
     "meal.searchPlaceholder": "e.g. kycklingbröst, havregryn, kvarg...",
     "meal.cantFind": "➕ Can't find your ingredient? Create it here",
@@ -200,12 +204,16 @@ const translations = {
     "meal.servingsPlaceholder": "e.g. 2",
     "meal.servingsNote": "How many portions does this meal make? Macros per serving will be calculated automatically.",
     "meal.saveToHistory": "💾 Save Meal to History",
-    "meal.addToTracker": "📅 Add to Today's Tracker",
-    "meal.addToTrackerDesc": "Log this meal as eaten today. This will save it to your daily intake tracker. Requires login.",
+    "meal.addToTracker": "📅 Add to Tracker",
+    "meal.addToTrackerDesc": "Log this meal to your tracker on the chosen date. Requires login.",
     "meal.servingsEaten": "Servings eaten",
     "meal.servingsEatenPlaceholder": "e.g. 1",
     "meal.servingsEatenNote": "How many servings of this meal did you eat?",
-    "meal.addToTrackerBtn": "📅 Add to Today's Tracker",
+    "meal.logDate": "Log date",
+    "meal.logDateNote": "Choose which date to save this meal to in your tracker.",
+    "meal.editingSavedMeal": "✏️ Editing saved meal: {name}",
+    "meal.updateSavedMeal": "💾 Update Saved Meal",
+    "meal.addToTrackerBtn": "📅 Add to Tracker",
     "meal.viewHistory": "📋 View Meal History",
     "meal.viewTracker": "📊 View Daily Tracker",
 
@@ -241,6 +249,23 @@ const translations = {
     "tracker.noMeals": "No meals logged for this day.",
     "tracker.noWorkouts": "No workouts logged for this day.",
     "tracker.last7Days": "📆 Last 7 Days Overview",
+    "tracker.weekSummary": "📆 Monday-Sunday Weekly Summary",
+    "tracker.currentWeekSummary": "📆 Current Week (Monday-Sunday)",
+    "tracker.quickEntryTitle": "⚡ Quick Entry",
+    "tracker.quickEntryDesc": "Add a fast calorie or macro entry straight to the selected date.",
+    "tracker.quickEntryName": "Entry name",
+    "tracker.quickEntryNamePlaceholder": "e.g. Protein shake, snack, coffee",
+    "tracker.quickEntryAdd": "➕ Add Quick Entry",
+    "tracker.addMealTitle": "🍽️ Add Meal",
+    "tracker.addMealDesc": "Open the meal builder and log a meal to the date currently selected above.",
+    "tracker.addMealBtn": "➕ Open Add Meal View",
+    "tracker.quickMealLogTitle": "📚 Log Saved Meal",
+    "tracker.quickMealLogDesc": "Search your saved recipes and log them directly to the selected date.",
+    "tracker.quickMealSearch": "Search saved meals",
+    "tracker.quickMealSearchPlaceholder": "Search saved meals...",
+    "tracker.quickMealPortions": "Portions to log",
+    "tracker.quickMealLogBtn": "📅 Log Saved Meal",
+    "tracker.logsToSelectedDate": "Entries are saved to the currently selected date above.",
 
     // Workout page
     "workout.title": "Workout Tracker",
@@ -424,7 +449,7 @@ const translations = {
     "bmi.lowCarbs": "Lågkolhydrat (Keto)",
     "bmi.saveBtn": "💾 Spara BMI, BMR & kostplan till profil",
 
-    // Ingredients page
+    // Ingredients page & beyond - all translations mirror the EN versions but in Swedish
     "ing.addNew": "➕ Lägg till ny ingrediens",
     "ing.addDesc": "Lägg till en anpassad ingrediens i din databas (värden per 100g).",
     "ing.name": "Ingrediensnamn",
@@ -466,13 +491,17 @@ const translations = {
     "ing.editTitle": "✏️ Redigera ingrediens",
     "ing.saveChanges": "💾 Spara ändringar",
 
-    // Meal page
+    // ... (Continue with meal, history, tracker, workout translations in Swedish)
     "meal.addMeal": "Lägg till en måltid",
     "meal.searchDb": "🔍 Sök i livsmedelsdatabas",
     "meal.searchDesc": "Sök efter produkter från Willys, officiella Livsmedelsverket-databasen, eller FatSecrets stora livsmedelsdatabas.",
     "meal.storeProducts": "🏪 Willys",
     "meal.fatSecret": "🍽️ FatSecret",
     "meal.livsmedelsverket": "📋 Livsmedelsverket",
+    "meal.savedMealSearch": "📚 Hitta från måltidshistoriken",
+    "meal.savedMealSearchDesc": "Sök bland dina sparade måltider här och ladda dem direkt i den här vyn.",
+    "meal.searchSavedMeals": "Sök sparade måltider",
+    "meal.searchMealHistory": "Sök i måltidshistoriken...",
     "meal.searchFood": "Sök livsmedel",
     "meal.searchPlaceholder": "t.ex. kycklingbröst, havregryn, kvarg...",
     "meal.cantFind": "➕ Hittar du inte din ingrediens? Skapa den här",
@@ -498,12 +527,16 @@ const translations = {
     "meal.servingsPlaceholder": "t.ex. 2",
     "meal.servingsNote": "Hur många portioner ger denna måltid? Makros per portion beräknas automatiskt.",
     "meal.saveToHistory": "💾 Spara måltid till historik",
-    "meal.addToTracker": "📅 Lägg till i dagens spårning",
-    "meal.addToTrackerDesc": "Logga denna måltid som äten idag. Den sparas i din dagliga intags-spårare. Kräver inloggning.",
+    "meal.addToTracker": "📅 Lägg till i spårning",
+    "meal.addToTrackerDesc": "Logga denna måltid i din spårning på valt datum. Kräver inloggning.",
     "meal.servingsEaten": "Portioner ätna",
     "meal.servingsEatenPlaceholder": "t.ex. 1",
     "meal.servingsEatenNote": "Hur många portioner av denna måltid åt du?",
-    "meal.addToTrackerBtn": "📅 Lägg till i dagens spårning",
+    "meal.logDate": "Loggningsdatum",
+    "meal.logDateNote": "Välj vilket datum måltiden ska sparas på i din spårning.",
+    "meal.editingSavedMeal": "✏️ Redigerar sparad måltid: {name}",
+    "meal.updateSavedMeal": "💾 Uppdatera sparad måltid",
+    "meal.addToTrackerBtn": "📅 Lägg till i spårning",
     "meal.viewHistory": "📋 Visa måltidshistorik",
     "meal.viewTracker": "📊 Visa daglig spårning",
 
@@ -539,6 +572,23 @@ const translations = {
     "tracker.noMeals": "Inga måltider loggade för denna dag.",
     "tracker.noWorkouts": "Inga träningspass loggade för denna dag.",
     "tracker.last7Days": "📆 Senaste 7 dagarna",
+    "tracker.weekSummary": "📆 Veckosammanfattning måndag-söndag",
+    "tracker.currentWeekSummary": "📆 Aktuell vecka (måndag-söndag)",
+    "tracker.quickEntryTitle": "⚡ Snabbregistrering",
+    "tracker.quickEntryDesc": "Lägg snabbt till kalorier eller makron direkt på valt datum.",
+    "tracker.quickEntryName": "Namn på registrering",
+    "tracker.quickEntryNamePlaceholder": "t.ex. Proteindrink, mellanmål, kaffe",
+    "tracker.quickEntryAdd": "➕ Lägg till snabbregistrering",
+    "tracker.addMealTitle": "🍽️ Lägg till måltid",
+    "tracker.addMealDesc": "Öppna måltidsvyn och logga en måltid på datumet som är valt ovan.",
+    "tracker.addMealBtn": "➕ Öppna Lägg till måltid",
+    "tracker.quickMealLogTitle": "📚 Logga sparad måltid",
+    "tracker.quickMealLogDesc": "Sök bland dina sparade recept och logga dem direkt på valt datum.",
+    "tracker.quickMealSearch": "Sök sparade måltider",
+    "tracker.quickMealSearchPlaceholder": "Sök sparade måltider...",
+    "tracker.quickMealPortions": "Portioner att logga",
+    "tracker.quickMealLogBtn": "📅 Logga sparad måltid",
+    "tracker.logsToSelectedDate": "Poster sparas på datumet som är valt ovan.",
 
     // Workout page
     "workout.title": "Träningsspårare",
@@ -771,6 +821,10 @@ const translations = {
     "meal.storeProducts": "🏪 Willys",
     "meal.fatSecret": "🍽️ FatSecret",
     "meal.livsmedelsverket": "📋 Livsmedelsverket",
+    "meal.savedMealSearch": "📚 ابحث في سجل الوجبات",
+    "meal.savedMealSearchDesc": "ابحث هنا في وجباتك المحفوظة وحمّلها مباشرة في هذه الصفحة.",
+    "meal.searchSavedMeals": "ابحث في الوجبات المحفوظة",
+    "meal.searchMealHistory": "ابحث في سجل الوجبات...",
     "meal.searchFood": "بحث عن طعام",
     "meal.searchPlaceholder": "مثال: صدر دجاج، شوفان، زبادي...",
     "meal.cantFind": "➕ لم تجد المكون؟ أنشئه هنا",
@@ -796,12 +850,16 @@ const translations = {
     "meal.servingsPlaceholder": "مثال: 2",
     "meal.servingsNote": "كم حصة تصنع هذه الوجبة؟ سيتم حساب الماكروز لكل حصة تلقائياً.",
     "meal.saveToHistory": "💾 حفظ الوجبة في السجل",
-    "meal.addToTracker": "📅 إضافة لمتابعة اليوم",
-    "meal.addToTrackerDesc": "سجل هذه الوجبة كمأكولة اليوم. سيتم حفظها في متتبع استهلاكك اليومي. يتطلب تسجيل الدخول.",
+    "meal.addToTracker": "📅 إضافة إلى المتابعة",
+    "meal.addToTrackerDesc": "سجّل هذه الوجبة في المتابعة في التاريخ الذي تختاره. يتطلب تسجيل الدخول.",
     "meal.servingsEaten": "الحصص المأكولة",
     "meal.servingsEatenPlaceholder": "مثال: 1",
     "meal.servingsEatenNote": "كم حصة من هذه الوجبة أكلت؟",
-    "meal.addToTrackerBtn": "📅 إضافة لمتابعة اليوم",
+    "meal.logDate": "تاريخ التسجيل",
+    "meal.logDateNote": "اختر التاريخ الذي تريد حفظ هذه الوجبة فيه داخل المتابعة.",
+    "meal.editingSavedMeal": "✏️ يتم الآن تعديل الوجبة المحفوظة: {name}",
+    "meal.updateSavedMeal": "💾 تحديث الوجبة المحفوظة",
+    "meal.addToTrackerBtn": "📅 إضافة إلى المتابعة",
     "meal.viewHistory": "📋 عرض سجل الوجبات",
     "meal.viewTracker": "📊 عرض المتابعة اليومية",
 
@@ -837,6 +895,23 @@ const translations = {
     "tracker.noMeals": "لا توجد وجبات مسجلة لهذا اليوم.",
     "tracker.noWorkouts": "لا توجد تمارين مسجلة لهذا اليوم.",
     "tracker.last7Days": "📆 آخر 7 أيام",
+    "tracker.weekSummary": "📆 ملخص الأسبوع من الاثنين إلى الأحد",
+    "tracker.currentWeekSummary": "📆 الأسبوع الحالي (الاثنين-الأحد)",
+    "tracker.quickEntryTitle": "⚡ إدخال سريع",
+    "tracker.quickEntryDesc": "أضف السعرات أو الماكروز بسرعة مباشرة إلى التاريخ المحدد.",
+    "tracker.quickEntryName": "اسم الإدخال",
+    "tracker.quickEntryNamePlaceholder": "مثال: مشروب بروتين، سناك، قهوة",
+    "tracker.quickEntryAdd": "➕ إضافة إدخال سريع",
+    "tracker.addMealTitle": "🍽️ إضافة وجبة",
+    "tracker.addMealDesc": "افتح شاشة الوجبات وسجّل وجبة في التاريخ المحدد أعلاه.",
+    "tracker.addMealBtn": "➕ افتح شاشة إضافة وجبة",
+    "tracker.quickMealLogTitle": "📚 تسجيل وجبة محفوظة",
+    "tracker.quickMealLogDesc": "ابحث في وصفاتك المحفوظة وسجلها مباشرة في التاريخ المحدد.",
+    "tracker.quickMealSearch": "ابحث في الوجبات المحفوظة",
+    "tracker.quickMealSearchPlaceholder": "ابحث في الوجبات المحفوظة...",
+    "tracker.quickMealPortions": "الحصص المطلوب تسجيلها",
+    "tracker.quickMealLogBtn": "📅 تسجيل وجبة محفوظة",
+    "tracker.logsToSelectedDate": "يتم حفظ الإدخالات في التاريخ المحدد أعلاه.",
 
     // Workout page
     "workout.title": "متتبع التمارين",
@@ -862,7 +937,7 @@ const translations = {
     "workout.weightPlaceholder": "مثال: 60",
     "workout.sets": "مجموعات",
     "workout.setsPlaceholder": "مثال: 4",
-    "workout.reps": "تكرارات",
+    "workout.reps":  "تكرارات",
     "workout.repsPlaceholder": "مثال: 10",
     "workout.date": "التاريخ",
     "workout.dateToday": "اليوم",
@@ -905,6 +980,21 @@ const translations = {
 function getCurrentLang() {
   return localStorage.getItem("selectedLang") || "en";
 }
+
+function interpolateTranslation(template, values = {}) {
+  return String(template).replace(/\{(\w+)\}/g, (_, key) => values[key] ?? `{${key}}`);
+}
+
+function getTranslationText(key, fallback = "") {
+  const lang = getCurrentLang();
+  const dict = translations[lang] || translations["en"];
+  return dict[key] || fallback || key;
+}
+
+window.getTranslation = getTranslationText;
+window.formatTranslation = function formatTranslation(key, values = {}, fallback = "") {
+  return interpolateTranslation(getTranslationText(key, fallback), values);
+};
 
 /**
  * Set the language and apply translations

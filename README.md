@@ -3,14 +3,28 @@ This website is for fitness and nutrition people to keep track of their daily ca
 
 ## Android quick deploy commands
 
-- `npm run android:live` -> starts a local live server, closes the previous Chrome tab for that localhost session, opens a fresh Chrome tab, then launches Capacitor Android live reload against that same URL.
-- `npm run android:phone` -> copy latest web assets, then run on connected Android phone.
-- `npm run android:phone:sync` -> sync Capacitor plugins/config, then run on connected Android phone.
+- `npm run sync:web` -> mirror root web files (like `*.html`, `styles.css`, and `script/`) into `www/`.
+- `npm run android:live` -> syncs root web files into `www/`, starts a local live server, optionally opens the page in Chrome on macOS, then launches Capacitor Android live reload against that same URL.
+- `npm run android:phone` -> first sync root web files into `www/`, then copy latest Capacitor assets and run on connected Android phone.
+- `npm run android:phone:sync` -> first sync root web files into `www/`, then sync Capacitor plugins/config and run on connected Android phone.
+
+### Root files vs `www/`
+
+Capacitor reads Android web assets from `www/`.
+
+The new sync step means you can keep editing root files such as:
+- `daily-tracker.html`
+- `meal.html`
+- `styles.css`
+- `script/*`
+
+and `npm run android:phone` / `npm run android:phone:sync` will mirror them into `www/` automatically before the Android build runs.
 
 ### `android:live` defaults
 
 - Live URL: `http://localhost:4173/index.html`
-- Chrome auto-open/old-tab cleanup: macOS only
+- Root web files are synced into `www/` before the server starts
+- Chrome auto-open: macOS only
 - Android runs with Capacitor live reload + `adb reverse` port forwarding
 
 Optional overrides:
@@ -42,7 +56,7 @@ Notes:
 
 ### One-command release + install
 
-- `npm run android:release:ship` -> bumps `versionCode` and `versionName`, copies web assets, builds release APK, commits version changes, creates git tag, and installs with `adb` if a device is connected.
+- `npm run android:release:ship` -> bumps `versionCode` and `versionName`, syncs root web files into `www/`, copies web assets, builds release APK, commits version changes, creates git tag, and installs with `adb` if a device is connected.
 - `npm run android:release:ship:sync` -> same as above but uses Capacitor sync.
 - `android:release:ship*` also syncs `currentVersion` in `script/appUpdater.js` and `www/script/appUpdater.js`.
 

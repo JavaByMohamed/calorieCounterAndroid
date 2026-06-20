@@ -3,12 +3,63 @@ import { isCloudEnabled, saveToCloud, loadFromCloud } from './cloudStorage.js';
 import { searchSwedishFood, getFoodNutrition, searchSwedishStoreProducts } from './swedishFoodAPI.js';
 import { searchFatSecretFood, getFatSecretFoodDetails, isFatSecretConfigured } from './fatSecretAPI.js';
 
-// Example usage
 console.log(mockNutritionDB);
 
 // 🇸🇪 Swedish Food API Search Integration
 let apiSelectedFood = null;
-let currentSearchSource = "stores"; // "stores" (Open Food Facts), "fatsecret", or "livsmedelsverket"
+let currentSearchSource = "stores";
+let editingMealId = null;
+let editingMealOriginalDate = null;
+
+function t(key, fallback) {
+  return typeof window.getTranslation === "function" ? window.getTranslation(key, fallback) : fallback;
+}
+
+function tf(key, values, fallback) {
+  return typeof window.formatTranslation === "function"
+    ? window.formatTranslation(key, values, fallback)
+    : fallback.replace(/\{(\w+)\}/g, (_, token) => values?.[token] ?? `{${token}}`);
+}
+
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayDateStr() {
+  return formatLocalDate(new Date());
+}
+
+function isValidDateInput(dateStr) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || ""));
+}
+
+function buildTrackerIso(dateStr) {
+  if (!dateStr) return new Date().toISOString();
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1, 12, 0, 0, 0).toISOString();
+}
+
+function getRequestedTrackerDate() {
+  const requestedDate = new URLSearchParams(window.location.search).get("date");
+  return isValidDateInput(requestedDate) ? requestedDate : "";
+}
+
+function buildTrackerPageUrl(dateStr) {
+  const url = new URL("daily-tracker.html", window.location.href);
+  if (isValidDateInput(dateStr)) {
+    url.searchParams.set("date", dateStr);
+  }
+  return url.toString();
+}
+
+function syncTrackerLink(dateStr) {
+  const viewTrackerLink = document.getElementById("viewTrackerLink");
+  if (!viewTrackerLink) return;
+  viewTrackerLink.href = buildTrackerPageUrl(dateStr || getRequestedTrackerDate() || getTodayDateStr());
+}
 
 function initAPISearch() {
   const searchInput = document.getElementById("apiSearch");
@@ -23,7 +74,6 @@ function initAPISearch() {
       sourceToggles.forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       currentSearchSource = btn.getAttribute("data-source");
-      // Re-trigger search if there's text
       if (searchInput.value.trim().length >= 2) {
         searchInput.dispatchEvent(new Event("input"));
       }
@@ -44,10 +94,49 @@ function initAPISearch() {
       resultsDiv.style.display = "block";
       console.log("[API Search] Source:", currentSearchSource, "Query:", query);
 
-      if (currentSearchSource === "fatsecret") {
-        // FatSecret — large food database (Swedish region)
+      if (currentSearchSource === "history") {
+        let historyMeals = [];
+        try {
+          historyMeals = (await getMealHistory()).filter((meal) => !meal.addedToTracker);
+        } catch (e) {
+          console.error("History meal search failed:", e);
+        }
+
+        const normalizedQuery = query.toLowerCase();
+        const filteredMeals = historyMeals.filter((meal) => {
+          const nameMatch = (meal.name || "").toLowerCase().includes(normalizedQuery);
+          const ingredientMatch = Array.isArray(meal.items)
+            && meal.items.some((item) => (item.name || "").toLowerCase().includes(normalizedQuery));
+          return nameMatch || ingredientMatch;
+        });
+
+        if (filteredMeals.length === 0) {
+          resultsDiv.innerHTML = '<div class="ingredient-option disabled">No meals found in your history.</div>';
+        } else {
+          window._historyMealResults = filteredMeals;
+          resultsDiv.innerHTML = filteredMeals.map((meal, idx) => {
+            const mealCalories = meal?.totals?.calories || 0;
+            const servings = meal.servings || 1;
+            return `<div class="ingredient-option" data-index="${idx}">
+              <strong>${meal.name}</strong><br>
+              <small>🍽️ ${servings} serving${servings > 1 ? "s" : ""} · ${mealCalories.toFixed(1)} kcal</small>
+            </div>`;
+          }).join("");
+
+          resultsDiv.querySelectorAll(".ingredient-option:not(.disabled)").forEach((opt) => {
+            opt.addEventListener("click", () => {
+              const meal = window._historyMealResults[parseInt(opt.getAttribute("data-index"), 10)];
+              if (!meal) return;
+
+              searchInput.value = meal.name || "";
+              resultsDiv.style.display = "none";
+              showHistoryMealPreview(previewDiv, meal);
+            });
+          });
+        }
+      } else if (currentSearchSource === "fatsecret") {
         if (!isFatSecretConfigured()) {
-          resultsDiv.innerHTML = '<div class="ingredient-option disabled">⚠️ FatSecret not configured. Set API credentials in fatSecretAPI.js</div>';
+          resultsDiv.innerHTML = '<div class="ingredient-option disabled">⚠️ FatSecret not configured.</div>';
           return;
         }
         let results = [];
@@ -63,7 +152,6 @@ function initAPISearch() {
           resultsDiv.innerHTML = results.map((item, idx) =>
             `<div class="ingredient-option" data-index="${idx}">
               <strong>${item.name}</strong>${item.brand ? ` <small>(${item.brand})</small>` : ""}
-              ${item.type ? `<br><small>${item.type === "Brand" ? "🏷️ Brand" : "🥗 Generic"}</small>` : ""}
               ${item.description ? `<br><small class="food-desc">${item.description}</small>` : ""}
             </div>`
           ).join("");
@@ -79,7 +167,6 @@ function initAPISearch() {
               if (nutrition) {
                 showNutritionPreview(previewDiv, nutrition);
               } else {
-                // Fall back to basic info from search results
                 showNutritionPreview(previewDiv, {
                   name: `${item.name}${item.brand ? " (" + item.brand + ")" : ""}`,
                   calories: item.calories,
@@ -94,7 +181,6 @@ function initAPISearch() {
           });
         }
       } else if (currentSearchSource === "stores") {
-        // Willys API — Swedish grocery store products
         let results = [];
         try {
           results = await searchSwedishStoreProducts(query);
@@ -104,7 +190,6 @@ function initAPISearch() {
         if (results.length === 0) {
           resultsDiv.innerHTML = '<div class="ingredient-option disabled">No store products found.</div>';
         } else {
-          // Store results in a temporary array to avoid JSON-in-attribute issues
           window._storeSearchResults = results;
           resultsDiv.innerHTML = results.map((item, idx) => {
             const hasNutrition = item.calories > 0 || item.protein > 0;
@@ -134,12 +219,11 @@ function initAPISearch() {
                   stores: item.stores,
                 });
               } else {
-                // No nutrition data — show product info with a note
                 previewDiv.style.display = "block";
                 previewDiv.innerHTML = `
                   <p><strong>${item.name}</strong>${item.brand ? ` (${item.brand})` : ""}</p>
                   <p>🏪 ${item.stores}${item.price ? ` · 💰 ${item.price}` : ""}${item.volume ? ` · ${item.volume}` : ""}</p>
-                  <p style="color:#e67e22">⚠️ Nutrition data not found in Open Food Facts database. You can add it manually below.</p>
+                  <p style="color:#e67e22">⚠️ Nutrition data not found. You can add it manually below.</p>
                   <p><small>💡 Tip: Check the product packaging or the store's website for accurate nutrition info.</small></p>
                 `;
                 apiSelectedFood = {
@@ -151,10 +235,9 @@ function initAPISearch() {
           });
         }
       } else {
-        // Livsmedelsverket — generic Swedish foods
         const results = await searchSwedishFood(query);
         if (results.length === 0) {
-          resultsDiv.innerHTML = '<div class="ingredient-option disabled">No results found. Try searching in Swedish.</div>';
+          resultsDiv.innerHTML = '<div class="ingredient-option disabled">No results found.</div>';
         } else {
           resultsDiv.innerHTML = results.map(item =>
             `<div class="ingredient-option" data-id="${item.id}">${item.name}</div>`
@@ -170,7 +253,7 @@ function initAPISearch() {
               if (nutrition) {
                 showNutritionPreview(previewDiv, nutrition);
               } else {
-                previewDiv.innerHTML = "<p>❌ Could not load nutrition data for this item.</p>";
+                previewDiv.innerHTML = "<p>❌ Could not load nutrition data.</p>";
               }
             });
           });
@@ -179,7 +262,6 @@ function initAPISearch() {
     }, 400);
   });
 
-  // Close results on outside click
   document.addEventListener("click", (e) => {
     if (!searchInput.parentElement.contains(e.target)) {
       resultsDiv.style.display = "none";
@@ -209,10 +291,8 @@ function showNutritionPreview(previewDiv, nutrition) {
   });
 }
 
-// Use API food data — adds it as a temporary entry to the local DB and fills the form
 function useApiFood(nutrition) {
   const name = nutrition.name.toLowerCase();
-  // Add to local mock DB so the meal form can use it
   mockNutritionDB[name] = {
     calories: nutrition.calories,
     protein: nutrition.protein,
@@ -220,7 +300,6 @@ function useApiFood(nutrition) {
     carbs: nutrition.carbs,
     fiber: nutrition.fiber,
   };
-  // Fill in the ingredient input and focus on amount
   const ingredientInput = document.getElementById("ingredient");
   if (ingredientInput) {
     ingredientInput.value = name;
@@ -230,13 +309,112 @@ function useApiFood(nutrition) {
     amountInput.focus();
     amountInput.value = 100;
   }
-  // Update unit selector for this ingredient
   updateAmountUnitSelector(name);
-  // Refresh dropdown (but don't show it — user is moving to amount field)
   renderIngredientList("", false);
 }
 
-// Populate the ingredient dropdown with search/filter capability
+function showHistoryMealPreview(previewDiv, meal) {
+  const totals = meal?.totals || {};
+  const servings = meal?.servings || 1;
+  previewDiv.style.display = "block";
+  previewDiv.innerHTML = `
+    <h5>📚 ${meal.name}</h5>
+    <p>
+      <strong>Total:</strong> ${(totals.calories || 0).toFixed(1)} kcal |
+      ${(totals.protein || 0).toFixed(1)}g protein |
+      ${(totals.fat || 0).toFixed(1)}g fat |
+      ${(totals.carbs || 0).toFixed(1)}g carbs |
+      ${(totals.fiber || 0).toFixed(1)}g fiber
+    </p>
+    <p><small>Servings in recipe: ${servings}</small></p>
+    <button type="button" id="useHistoryMealBtn">✅ Load this meal</button>
+  `;
+
+  const useHistoryMealBtn = document.getElementById("useHistoryMealBtn");
+  if (!useHistoryMealBtn) return;
+  useHistoryMealBtn.addEventListener("click", () => {
+    let requestedPortions = 1;
+    if (servings > 1) {
+      const input = prompt(
+        `This recipe makes ${servings} portions.\nHow many portions do you want to log?`,
+        "1"
+      );
+      if (input === null) return;
+      requestedPortions = Math.max(1, parseInt(input, 10) || 1);
+    }
+
+    loadMealIntoForm(meal, { editMode: false, requestedPortions });
+  });
+}
+
+function initSavedMealSearch() {
+  const searchInput = document.getElementById("savedMealSearch");
+  const resultsDiv = document.getElementById("savedMealSearchResults");
+  if (!searchInput || !resultsDiv) return;
+
+  let debounceTimer = null;
+
+  searchInput.addEventListener("input", function () {
+    clearTimeout(debounceTimer);
+    const query = this.value.trim().toLowerCase();
+
+    if (query.length < 2) {
+      resultsDiv.style.display = "none";
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      resultsDiv.innerHTML = '<div class="ingredient-option disabled">Searching saved meals...</div>';
+      resultsDiv.style.display = "block";
+
+      let historyMeals = [];
+      try {
+        historyMeals = (await getMealHistory()).filter((meal) => !meal.addedToTracker);
+      } catch (error) {
+        console.error("Saved meal search failed:", error);
+      }
+
+      const filteredMeals = historyMeals.filter((meal) => {
+        const mealName = (meal.name || "").toLowerCase();
+        const ingredientMatch = Array.isArray(meal.items)
+          && meal.items.some((item) => (item.name || "").toLowerCase().includes(query));
+        return mealName.includes(query) || ingredientMatch;
+      });
+
+      if (filteredMeals.length === 0) {
+        resultsDiv.innerHTML = '<div class="ingredient-option disabled">No saved meals found.</div>';
+        return;
+      }
+
+      window._savedMealSearchResults = filteredMeals;
+      resultsDiv.innerHTML = filteredMeals.map((meal, idx) => {
+        const totalCalories = meal?.totals?.calories || 0;
+        const servings = meal?.servings || 1;
+        return `<div class="ingredient-option" data-index="${idx}">
+          <strong>${meal.name}</strong>
+          <br><small>🍽️ ${servings} serving${servings !== 1 ? "s" : ""} · ${totalCalories.toFixed(1)} kcal</small>
+        </div>`;
+      }).join("");
+
+      resultsDiv.querySelectorAll(".ingredient-option:not(.disabled)").forEach((opt) => {
+        opt.addEventListener("click", () => {
+          const meal = window._savedMealSearchResults?.[parseInt(opt.getAttribute("data-index"), 10)];
+          if (!meal) return;
+          searchInput.value = meal.name || "";
+          resultsDiv.style.display = "none";
+          loadMealIntoForm(meal, { requestedPortions: 1 });
+        });
+      });
+    }, 250);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!searchInput.parentElement.contains(e.target)) {
+      resultsDiv.style.display = "none";
+    }
+  });
+}
+
 function populateIngredientDropdown() {
   const ingredientDropdown = document.getElementById("ingredient");
   if (!ingredientDropdown) {
@@ -244,7 +422,6 @@ function populateIngredientDropdown() {
     return;
   }
 
-  // Convert select to a searchable input if not already done
   if (ingredientDropdown.tagName === "SELECT") {
     const wrapper = document.createElement("div");
     wrapper.className = "ingredient-search-wrapper";
@@ -265,7 +442,6 @@ function populateIngredientDropdown() {
     wrapper.appendChild(searchInput);
     wrapper.appendChild(dropdown);
 
-    // Build the filtered list
     searchInput.addEventListener("input", function () {
       renderIngredientList(this.value);
     });
@@ -274,7 +450,6 @@ function populateIngredientDropdown() {
       renderIngredientList(this.value);
     });
 
-    // Close dropdown when clicking outside
     document.addEventListener("click", function (e) {
       if (!wrapper.contains(e.target)) {
         dropdown.style.display = "none";
@@ -309,7 +484,6 @@ function renderIngredientList(filter, show = true) {
     dropdown.style.display = "none";
   }
 
-  // Click handlers for options
   dropdown.querySelectorAll(".ingredient-option:not(.disabled)").forEach(opt => {
     opt.addEventListener("click", function () {
       const input = document.getElementById("ingredient");
@@ -320,7 +494,6 @@ function renderIngredientList(filter, show = true) {
   });
 }
 
-// Call the function to populate the dropdown on page load
 document.addEventListener("DOMContentLoaded", async () => {
   if (typeof waitForFirebase === "function") {
     await waitForFirebase();
@@ -328,10 +501,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   await syncFromCloud();
   populateIngredientDropdown();
   initAPISearch();
+  initSavedMealSearch();
   initInlineIngredientForm();
-  loadReusedMeal();
+  loadPendingMealFromSession();
 
-  // Unit selector change — show conversion hint and update placeholder
+  const trackerDateTarget = document.getElementById("trackerDateTarget");
+  const initialTrackerDate = getRequestedTrackerDate() || getTodayDateStr();
+  if (trackerDateTarget && !trackerDateTarget.value) {
+    trackerDateTarget.value = initialTrackerDate;
+  }
+  syncTrackerLink(trackerDateTarget?.value || initialTrackerDate);
+  if (trackerDateTarget) {
+    trackerDateTarget.addEventListener("change", () => {
+      syncTrackerLink(trackerDateTarget.value || initialTrackerDate);
+    });
+  }
+
   const unitSelect = document.getElementById("amountUnit");
   const amountInput = document.getElementById("amount");
   if (unitSelect) {
@@ -345,12 +530,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// Update the unit selector when an ingredient is chosen
 function updateAmountUnitSelector(ingredientName) {
   const unitSelect = document.getElementById("amountUnit");
   if (!unitSelect) return;
 
-  // Reset to grams only
   unitSelect.innerHTML = '<option value="grams">grams</option>';
 
   const data = mockNutritionDB[ingredientName];
@@ -367,7 +550,6 @@ function updateAmountUnitSelector(ingredientName) {
   updateAmountPlaceholder();
 }
 
-// Update placeholder based on selected unit
 function updateAmountPlaceholder() {
   const unitSelect = document.getElementById("amountUnit");
   const amountInput = document.getElementById("amount");
@@ -383,7 +565,6 @@ function updateAmountPlaceholder() {
   }
 }
 
-// Show a hint about the conversion
 function updateUnitHint() {
   const hint = document.getElementById("unitConversionHint");
   const unitSelect = document.getElementById("amountUnit");
@@ -415,7 +596,92 @@ function updateUnitHint() {
 // 🥗 Meal Form Handling
 const form = document.getElementById("mealForm");
 const output = document.getElementById("mealOutput");
-let mealItems = []; // In-memory only — no localStorage
+let mealItems = [];
+
+function updateEditModeNotice(mealName) {
+  const notice = document.getElementById("editingMealNotice");
+  const saveBtn = document.getElementById("saveMealBtn");
+  if (notice) {
+    notice.textContent = tf("meal.editingSavedMeal", { name: mealName }, `✏️ Editing saved meal: ${mealName}`);
+    notice.style.display = "block";
+  }
+  if (saveBtn) {
+    saveBtn.textContent = t("meal.updateSavedMeal", "💾 Update Saved Meal");
+  }
+}
+
+function clearEditMode() {
+  editingMealId = null;
+  editingMealOriginalDate = null;
+
+  const notice = document.getElementById("editingMealNotice");
+  const saveBtn = document.getElementById("saveMealBtn");
+  if (notice) {
+    notice.textContent = "";
+    notice.style.display = "none";
+  }
+  if (saveBtn) {
+    saveBtn.textContent = t("meal.saveToHistory", "💾 Save Meal to History");
+  }
+}
+
+function loadMealIntoForm(meal, options = {}) {
+  const { editMode = false, requestedPortions = 1 } = options;
+  if (!meal || !Array.isArray(meal.items) || meal.items.length === 0) return false;
+
+  if (!editMode && mealItems.length > 0) {
+    const shouldReplace = confirm("Replace your current meal with this saved one?");
+    if (!shouldReplace) return false;
+  }
+
+  meal.items.forEach((item) => {
+    const name = (item.name || "").toLowerCase();
+    if (!name || mockNutritionDB[name] || !(item.amount > 0)) return;
+
+    const factor = 100 / item.amount;
+    mockNutritionDB[name] = {
+      calories: +(item.calories * factor).toFixed(2),
+      protein: +(item.protein * factor).toFixed(2),
+      fat: +(item.fat * factor).toFixed(2),
+      carbs: +(item.carbs * factor).toFixed(2),
+      fiber: +((item.fiber || 0) * factor).toFixed(2),
+    };
+  });
+
+  mealItems = meal.items.map((item) => ({
+    name: (item.name || "").toLowerCase(),
+    amount: item.amount,
+    calories: item.calories,
+    protein: item.protein,
+    fat: item.fat,
+    carbs: item.carbs,
+    fiber: item.fiber || 0,
+  }));
+
+  const cleanName = (meal.name || "").replace(/ \(x\d+\)$/, "");
+  const mealNameInput = document.getElementById("mealName");
+  const mealServingsInput = document.getElementById("mealServings");
+  const trackerServingsInput = document.getElementById("trackerServings");
+  const trackerDateTarget = document.getElementById("trackerDateTarget");
+
+  if (mealNameInput) mealNameInput.value = cleanName;
+  if (mealServingsInput) mealServingsInput.value = meal.servings || 1;
+  if (trackerServingsInput) trackerServingsInput.value = requestedPortions;
+  if (trackerDateTarget && !trackerDateTarget.value) trackerDateTarget.value = getRequestedTrackerDate() || getTodayDateStr();
+  syncTrackerLink(trackerDateTarget?.value || getRequestedTrackerDate() || getTodayDateStr());
+
+  if (editMode) {
+    editingMealId = meal.id;
+    editingMealOriginalDate = meal.date || new Date().toISOString();
+    updateEditModeNotice(cleanName || "Unnamed meal");
+  } else {
+    clearEditMode();
+  }
+
+  renderIngredientList("", false);
+  displayMeal();
+  return true;
+}
 
 // 📋 Handle form submission for adding meal items
 form.addEventListener("submit", function (e) {
@@ -426,20 +692,17 @@ form.addEventListener("submit", function (e) {
   const unitSelect = document.getElementById("amountUnit");
   const selectedUnit = unitSelect ? unitSelect.value : "grams";
 
-  // Validate inputs
   if (!ingredientInput || isNaN(amountInput) || amountInput <= 0) {
     alert("Please enter a valid ingredient and amount.");
     return;
   }
 
-  // Check if ingredient exists in the database
   const ingredientData = mockNutritionDB[ingredientInput];
   if (!ingredientData) {
     alert("Ingredient not found in the database.");
     return;
   }
 
-  // Convert unit to grams if needed
   let amountInGrams = amountInput;
   if (selectedUnit !== "grams" && ingredientData.servingUnits) {
     const unit = ingredientData.servingUnits.find(u => u.name === selectedUnit);
@@ -448,7 +711,6 @@ form.addEventListener("submit", function (e) {
     }
   }
 
-  // Calculate nutritional values
   const factor = amountInGrams / 100;
   const entry = {
     name: ingredientInput,
@@ -460,18 +722,15 @@ form.addEventListener("submit", function (e) {
     fiber: +((ingredientData.fiber || 0) * factor).toFixed(1),
   };
 
-  // Add entry to meal items and update the display
   mealItems.push(entry);
   displayMeal();
   form.reset();
-  // Reset unit selector
   if (unitSelect) {
     unitSelect.innerHTML = '<option value="grams">grams</option>';
   }
   const hint = document.getElementById("unitConversionHint");
   if (hint) hint.style.display = "none";
 });
-
 
 // 🖥️ Display meal summary
 function displayMeal() {
@@ -480,7 +739,6 @@ function displayMeal() {
     return;
   }
 
-  // Group ingredients by name and calculate totals
   const groupedItems = {};
   mealItems.forEach((item) => {
     if (!groupedItems[item.name]) {
@@ -561,7 +819,6 @@ function displayMeal() {
 
   output.innerHTML = html;
 
-  // Add event listener for clear meal button
   document.getElementById("clearMealBtn").addEventListener("click", function () {
     if (confirm("Clear all meal items?")) {
       mealItems = [];
@@ -569,7 +826,6 @@ function displayMeal() {
     }
   });
 
-  // Add event listeners for delete buttons
   document.querySelectorAll(".delete-btn").forEach((button) => {
     button.addEventListener("click", function () {
       const name = this.getAttribute("data-name");
@@ -577,7 +833,6 @@ function displayMeal() {
     });
   });
 
-  // Add event listeners for editing amounts
   document.querySelectorAll(".edit-amount").forEach((input) => {
     input.addEventListener("change", function () {
       const name = this.getAttribute("data-name");
@@ -591,13 +846,11 @@ function displayMeal() {
   });
 }
 
-// 🗑️ Function to delete a meal item
 function deleteMealItem(name) {
   mealItems = mealItems.filter((item) => item.name !== name);
   displayMeal();
 }
 
-// ✏️ Function to edit a meal item's amount
 function editMealItem(name, newAmount) {
   mealItems = mealItems.map((item) => {
     if (item.name === name) {
@@ -620,7 +873,6 @@ function editMealItem(name, newAmount) {
 
 // 💾 Meal history — Firebase only
 async function getMealHistory() {
-  // Try Firebase first
   if (typeof cloudLoadAllMealHistory === "function" && typeof isFirebaseReady === "function" && isFirebaseReady()) {
     const cloudMeals = await cloudLoadAllMealHistory();
     if (cloudMeals) return cloudMeals;
@@ -629,7 +881,6 @@ async function getMealHistory() {
 }
 
 async function saveMealHistory(history) {
-  // Save to Firebase only
   if (typeof cloudSaveAllMealHistory === "function" && typeof isFirebaseReady === "function" && isFirebaseReady()) {
     await cloudSaveAllMealHistory(history);
     console.log("☁️ Meal history saved to database");
@@ -648,7 +899,6 @@ document.getElementById("saveMealBtn").addEventListener("click", async function 
   const servingsInput = document.getElementById("mealServings");
   const servings = Math.max(1, parseInt(servingsInput.value) || 1);
 
-  // Calculate totals
   const totals = mealItems.reduce((acc, item) => {
     acc.calories += item.calories;
     acc.protein += item.protein;
@@ -658,7 +908,6 @@ document.getElementById("saveMealBtn").addEventListener("click", async function 
     return acc;
   }, { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0 });
 
-  // Calculate per-serving totals
   const perServing = {
     calories: +(totals.calories / servings).toFixed(1),
     protein: +(totals.protein / servings).toFixed(1),
@@ -667,25 +916,37 @@ document.getElementById("saveMealBtn").addEventListener("click", async function 
     fiber: +(totals.fiber / servings).toFixed(1),
   };
 
+  const nowIso = new Date().toISOString();
   const savedMeal = {
-    id: Date.now(),
+    id: editingMealId || Date.now(),
     username: "anonymous",
     name: mealName,
     servings: servings,
-    date: new Date().toISOString(),
+    date: editingMealOriginalDate || nowIso,
+    updatedAt: nowIso,
     items: [...mealItems],
     totals: totals,
     perServing: perServing,
   };
 
   const history = await getMealHistory();
-  history.unshift(savedMeal); // newest first
+  if (editingMealId) {
+    const index = history.findIndex((meal) => meal.id === editingMealId);
+    if (index >= 0) {
+      history[index] = savedMeal;
+    } else {
+      history.unshift(savedMeal);
+    }
+  } else {
+    history.unshift(savedMeal);
+  }
   await saveMealHistory(history);
 
-  alert(`Meal "${mealName}" saved to database!`);
+  alert(editingMealId ? `Meal "${mealName}" updated!` : `Meal "${mealName}" saved to database!`);
+  clearEditMode();
+  sessionStorage.removeItem("editMeal");
   mealNameInput.value = "";
 
-  // Optionally clear current meal
   if (confirm("Clear current meal?")) {
     mealItems = [];
     displayMeal();
@@ -699,7 +960,6 @@ document.getElementById("addToTrackerBtn").addEventListener("click", async funct
     return;
   }
 
-  // Get active user from cookie
   const selectedUser = getActiveUserFromCookie();
 
   if (!selectedUser) {
@@ -715,8 +975,9 @@ document.getElementById("addToTrackerBtn").addEventListener("click", async funct
 
   const trackerServingsInput = document.getElementById("trackerServings");
   const servingsEaten = Math.max(1, parseInt(trackerServingsInput.value) || 1);
+  const trackerDateTarget = document.getElementById("trackerDateTarget");
+  const targetDate = trackerDateTarget?.value || getTodayDateStr();
 
-  // Calculate totals for the full recipe
   const totals = mealItems.reduce((acc, item) => {
     acc.calories += item.calories;
     acc.protein += item.protein;
@@ -726,7 +987,6 @@ document.getElementById("addToTrackerBtn").addEventListener("click", async funct
     return acc;
   }, { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0 });
 
-  // Per serving
   const perServing = {
     calories: +(totals.calories / totalServings).toFixed(1),
     protein: +(totals.protein / totalServings).toFixed(1),
@@ -735,14 +995,14 @@ document.getElementById("addToTrackerBtn").addEventListener("click", async funct
     fiber: +(totals.fiber / totalServings).toFixed(1),
   };
 
-  // What gets logged to tracker = perServing * servingsEaten
   const trackerEntry = {
     id: Date.now(),
     username: selectedUser,
     name: mealName + (servingsEaten > 1 ? ` (x${servingsEaten})` : ""),
     servings: totalServings,
     servingsEaten: servingsEaten,
-    date: new Date().toISOString(),
+    entryDate: targetDate,
+    date: buildTrackerIso(targetDate),
     items: [...mealItems],
     totals: {
       calories: +(perServing.calories * servingsEaten).toFixed(1),
@@ -759,16 +1019,20 @@ document.getElementById("addToTrackerBtn").addEventListener("click", async funct
   history.unshift(trackerEntry);
   await saveMealHistory(history);
 
-  alert(`✅ "${mealName}" (${servingsEaten} serving${servingsEaten > 1 ? 's' : ''}) added to today's tracker!\n\nView your daily progress on the Daily Tracker page.`);
+  const successMessage = `✅ "${mealName}" (${servingsEaten} serving${servingsEaten > 1 ? 's' : ''}) added to your tracker for ${targetDate}!`;
+  alert(successMessage);
+
+  if (new URLSearchParams(window.location.search).get("return") === "daily-tracker.html") {
+    window.location.href = buildTrackerPageUrl(targetDate);
+    return;
+  }
 });
 
-// Helper: get active user from cookie
 function getActiveUserFromCookie() {
   const match = document.cookie.match(/(?:^|; )activeUser=([^;]*)/);
   return match ? decodeURIComponent(match[1]) : "";
 }
 
-// ➕ Inline ingredient creation from the meal form page
 function initInlineIngredientForm() {
   const form = document.getElementById("inlineAddIngredientForm");
   if (!form) return;
@@ -788,13 +1052,10 @@ function initInlineIngredientForm() {
       return;
     }
 
-    // Save to the database (persists to cloud)
     addIngredient(name, calories, protein, fat, carbs, fiber);
 
-    // Refresh the ingredient dropdown (don't show it)
     renderIngredientList("", false);
 
-    // Auto-select the new ingredient and focus amount
     const ingredientInput = document.getElementById("ingredient");
     if (ingredientInput) {
       ingredientInput.value = name.toLowerCase();
@@ -805,69 +1066,41 @@ function initInlineIngredientForm() {
       amountInput.value = 100;
     }
 
-    // Reset the inline form
     form.reset();
     alert(`✅ "${name}" added to your ingredient database and selected!`);
   });
 }
 
-// ♻️ Load a reused meal from session storage (set by meal history page)
-function loadReusedMeal() {
-  const data = sessionStorage.getItem("reuseMeal");
-  if (!data) return;
+function loadPendingMealFromSession() {
+  const trackerDateTarget = document.getElementById("trackerDateTarget");
+  if (trackerDateTarget && !trackerDateTarget.value) {
+    trackerDateTarget.value = getRequestedTrackerDate() || getTodayDateStr();
+  }
+  syncTrackerLink(trackerDateTarget?.value || getRequestedTrackerDate() || getTodayDateStr());
+
+  const editData = sessionStorage.getItem("editMeal");
+  if (editData) {
+    sessionStorage.removeItem("editMeal");
+    try {
+      const editMeal = JSON.parse(editData);
+      loadMealIntoForm(editMeal, { editMode: true, requestedPortions: 1 });
+      return;
+    } catch (e) {
+      console.error("Failed to load edit meal:", e);
+    }
+  }
+
+  const reuseData = sessionStorage.getItem("reuseMeal");
+  if (!reuseData) return;
   sessionStorage.removeItem("reuseMeal");
 
   try {
-    const meal = JSON.parse(data);
-    if (!meal.items || meal.items.length === 0) return;
-
-    // Add each item's nutrition data to mockDB so editing works
-    meal.items.forEach(item => {
-      const name = item.name.toLowerCase();
-      if (!mockNutritionDB[name] && item.amount > 0) {
-        const factor = 100 / item.amount;
-        mockNutritionDB[name] = {
-          calories: +(item.calories * factor).toFixed(2),
-          protein: +(item.protein * factor).toFixed(2),
-          fat: +(item.fat * factor).toFixed(2),
-          carbs: +(item.carbs * factor).toFixed(2),
-          fiber: +((item.fiber || 0) * factor).toFixed(2),
-        };
-      }
-    });
-
-    // Load items into current meal
-    mealItems = meal.items.map(item => ({
-      name: item.name.toLowerCase(),
-      amount: item.amount,
-      calories: item.calories,
-      protein: item.protein,
-      fat: item.fat,
-      carbs: item.carbs,
-      fiber: item.fiber || 0,
-    }));
-
-    // Set meal name (strip old portion suffix like "(x2)")
-    const mealNameInput = document.getElementById("mealName");
-    const cleanName = (meal.name || "").replace(/ \(x\d+\)$/, "");
-    if (mealNameInput) mealNameInput.value = cleanName;
-
-    // Set total servings (the recipe makes this many portions)
-    const mealServingsInput = document.getElementById("mealServings");
-    if (mealServingsInput) mealServingsInput.value = meal.servings || 1;
-
-    // Set tracker servings (how many portions to eat)
+    const meal = JSON.parse(reuseData);
     const requestedPortions = meal._requestedPortions || 1;
-    const trackerServingsInput = document.getElementById("trackerServings");
-    if (trackerServingsInput) trackerServingsInput.value = requestedPortions;
-
-    // Refresh ingredient dropdown and display
-    renderIngredientList("", false);
-    displayMeal();
-
-    console.log(`♻️ Reused meal "${cleanName}" loaded with ${mealItems.length} items (${requestedPortions} portion${requestedPortions > 1 ? 's' : ''} of ${meal.servings || 1})`);
+    loadMealIntoForm(meal, { editMode: false, requestedPortions });
   } catch (e) {
     console.error("Failed to load reused meal:", e);
   }
 }
+
 

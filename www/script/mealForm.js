@@ -11,6 +11,56 @@ let currentSearchSource = "stores";
 let editingMealId = null;
 let editingMealOriginalDate = null;
 
+function t(key, fallback) {
+  return typeof window.getTranslation === "function" ? window.getTranslation(key, fallback) : fallback;
+}
+
+function tf(key, values, fallback) {
+  return typeof window.formatTranslation === "function"
+    ? window.formatTranslation(key, values, fallback)
+    : fallback.replace(/\{(\w+)\}/g, (_, token) => values?.[token] ?? `{${token}}`);
+}
+
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getTodayDateStr() {
+  return formatLocalDate(new Date());
+}
+
+function isValidDateInput(dateStr) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || ""));
+}
+
+function buildTrackerIso(dateStr) {
+  if (!dateStr) return new Date().toISOString();
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1, 12, 0, 0, 0).toISOString();
+}
+
+function getRequestedTrackerDate() {
+  const requestedDate = new URLSearchParams(window.location.search).get("date");
+  return isValidDateInput(requestedDate) ? requestedDate : "";
+}
+
+function buildTrackerPageUrl(dateStr) {
+  const url = new URL("daily-tracker.html", window.location.href);
+  if (isValidDateInput(dateStr)) {
+    url.searchParams.set("date", dateStr);
+  }
+  return url.toString();
+}
+
+function syncTrackerLink(dateStr) {
+  const viewTrackerLink = document.getElementById("viewTrackerLink");
+  if (!viewTrackerLink) return;
+  viewTrackerLink.href = buildTrackerPageUrl(dateStr || getRequestedTrackerDate() || getTodayDateStr());
+}
+
 function initAPISearch() {
   const searchInput = document.getElementById("apiSearch");
   const resultsDiv = document.getElementById("apiSearchResults");
@@ -297,6 +347,74 @@ function showHistoryMealPreview(previewDiv, meal) {
   });
 }
 
+function initSavedMealSearch() {
+  const searchInput = document.getElementById("savedMealSearch");
+  const resultsDiv = document.getElementById("savedMealSearchResults");
+  if (!searchInput || !resultsDiv) return;
+
+  let debounceTimer = null;
+
+  searchInput.addEventListener("input", function () {
+    clearTimeout(debounceTimer);
+    const query = this.value.trim().toLowerCase();
+
+    if (query.length < 2) {
+      resultsDiv.style.display = "none";
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      resultsDiv.innerHTML = '<div class="ingredient-option disabled">Searching saved meals...</div>';
+      resultsDiv.style.display = "block";
+
+      let historyMeals = [];
+      try {
+        historyMeals = (await getMealHistory()).filter((meal) => !meal.addedToTracker);
+      } catch (error) {
+        console.error("Saved meal search failed:", error);
+      }
+
+      const filteredMeals = historyMeals.filter((meal) => {
+        const mealName = (meal.name || "").toLowerCase();
+        const ingredientMatch = Array.isArray(meal.items)
+          && meal.items.some((item) => (item.name || "").toLowerCase().includes(query));
+        return mealName.includes(query) || ingredientMatch;
+      });
+
+      if (filteredMeals.length === 0) {
+        resultsDiv.innerHTML = '<div class="ingredient-option disabled">No saved meals found.</div>';
+        return;
+      }
+
+      window._savedMealSearchResults = filteredMeals;
+      resultsDiv.innerHTML = filteredMeals.map((meal, idx) => {
+        const totalCalories = meal?.totals?.calories || 0;
+        const servings = meal?.servings || 1;
+        return `<div class="ingredient-option" data-index="${idx}">
+          <strong>${meal.name}</strong>
+          <br><small>🍽️ ${servings} serving${servings !== 1 ? "s" : ""} · ${totalCalories.toFixed(1)} kcal</small>
+        </div>`;
+      }).join("");
+
+      resultsDiv.querySelectorAll(".ingredient-option:not(.disabled)").forEach((opt) => {
+        opt.addEventListener("click", () => {
+          const meal = window._savedMealSearchResults?.[parseInt(opt.getAttribute("data-index"), 10)];
+          if (!meal) return;
+          searchInput.value = meal.name || "";
+          resultsDiv.style.display = "none";
+          loadMealIntoForm(meal, { requestedPortions: 1 });
+        });
+      });
+    }, 250);
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!searchInput.parentElement.contains(e.target)) {
+      resultsDiv.style.display = "none";
+    }
+  });
+}
+
 function populateIngredientDropdown() {
   const ingredientDropdown = document.getElementById("ingredient");
   if (!ingredientDropdown) {
@@ -383,8 +501,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   await syncFromCloud();
   populateIngredientDropdown();
   initAPISearch();
+  initSavedMealSearch();
   initInlineIngredientForm();
   loadPendingMealFromSession();
+
+  const trackerDateTarget = document.getElementById("trackerDateTarget");
+  const initialTrackerDate = getRequestedTrackerDate() || getTodayDateStr();
+  if (trackerDateTarget && !trackerDateTarget.value) {
+    trackerDateTarget.value = initialTrackerDate;
+  }
+  syncTrackerLink(trackerDateTarget?.value || initialTrackerDate);
+  if (trackerDateTarget) {
+    trackerDateTarget.addEventListener("change", () => {
+      syncTrackerLink(trackerDateTarget.value || initialTrackerDate);
+    });
+  }
 
   const unitSelect = document.getElementById("amountUnit");
   const amountInput = document.getElementById("amount");
@@ -471,11 +602,11 @@ function updateEditModeNotice(mealName) {
   const notice = document.getElementById("editingMealNotice");
   const saveBtn = document.getElementById("saveMealBtn");
   if (notice) {
-    notice.textContent = `✏️ Editing saved meal: ${mealName}`;
+    notice.textContent = tf("meal.editingSavedMeal", { name: mealName }, `✏️ Editing saved meal: ${mealName}`);
     notice.style.display = "block";
   }
   if (saveBtn) {
-    saveBtn.textContent = "💾 Update Saved Meal";
+    saveBtn.textContent = t("meal.updateSavedMeal", "💾 Update Saved Meal");
   }
 }
 
@@ -490,7 +621,7 @@ function clearEditMode() {
     notice.style.display = "none";
   }
   if (saveBtn) {
-    saveBtn.textContent = "💾 Save Meal to History";
+    saveBtn.textContent = t("meal.saveToHistory", "💾 Save Meal to History");
   }
 }
 
@@ -531,10 +662,13 @@ function loadMealIntoForm(meal, options = {}) {
   const mealNameInput = document.getElementById("mealName");
   const mealServingsInput = document.getElementById("mealServings");
   const trackerServingsInput = document.getElementById("trackerServings");
+  const trackerDateTarget = document.getElementById("trackerDateTarget");
 
   if (mealNameInput) mealNameInput.value = cleanName;
   if (mealServingsInput) mealServingsInput.value = meal.servings || 1;
   if (trackerServingsInput) trackerServingsInput.value = requestedPortions;
+  if (trackerDateTarget && !trackerDateTarget.value) trackerDateTarget.value = getRequestedTrackerDate() || getTodayDateStr();
+  syncTrackerLink(trackerDateTarget?.value || getRequestedTrackerDate() || getTodayDateStr());
 
   if (editMode) {
     editingMealId = meal.id;
@@ -841,6 +975,8 @@ document.getElementById("addToTrackerBtn").addEventListener("click", async funct
 
   const trackerServingsInput = document.getElementById("trackerServings");
   const servingsEaten = Math.max(1, parseInt(trackerServingsInput.value) || 1);
+  const trackerDateTarget = document.getElementById("trackerDateTarget");
+  const targetDate = trackerDateTarget?.value || getTodayDateStr();
 
   const totals = mealItems.reduce((acc, item) => {
     acc.calories += item.calories;
@@ -865,7 +1001,8 @@ document.getElementById("addToTrackerBtn").addEventListener("click", async funct
     name: mealName + (servingsEaten > 1 ? ` (x${servingsEaten})` : ""),
     servings: totalServings,
     servingsEaten: servingsEaten,
-    date: new Date().toISOString(),
+    entryDate: targetDate,
+    date: buildTrackerIso(targetDate),
     items: [...mealItems],
     totals: {
       calories: +(perServing.calories * servingsEaten).toFixed(1),
@@ -882,7 +1019,13 @@ document.getElementById("addToTrackerBtn").addEventListener("click", async funct
   history.unshift(trackerEntry);
   await saveMealHistory(history);
 
-  alert(`✅ "${mealName}" (${servingsEaten} serving${servingsEaten > 1 ? 's' : ''}) added to today's tracker!`);
+  const successMessage = `✅ "${mealName}" (${servingsEaten} serving${servingsEaten > 1 ? 's' : ''}) added to your tracker for ${targetDate}!`;
+  alert(successMessage);
+
+  if (new URLSearchParams(window.location.search).get("return") === "daily-tracker.html") {
+    window.location.href = buildTrackerPageUrl(targetDate);
+    return;
+  }
 });
 
 function getActiveUserFromCookie() {
@@ -929,6 +1072,12 @@ function initInlineIngredientForm() {
 }
 
 function loadPendingMealFromSession() {
+  const trackerDateTarget = document.getElementById("trackerDateTarget");
+  if (trackerDateTarget && !trackerDateTarget.value) {
+    trackerDateTarget.value = getRequestedTrackerDate() || getTodayDateStr();
+  }
+  syncTrackerLink(trackerDateTarget?.value || getRequestedTrackerDate() || getTodayDateStr());
+
   const editData = sessionStorage.getItem("editMeal");
   if (editData) {
     sessionStorage.removeItem("editMeal");

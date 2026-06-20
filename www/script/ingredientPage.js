@@ -282,4 +282,3 @@ function collectServingUnits(container) {
   return units;
 }
 
-

@@ -46,7 +46,12 @@ async function displayHistory(filterDateStr, searchQuery) {
 
   if (searchQuery) {
     const query = searchQuery.toLowerCase();
-    history = history.filter((meal) => meal.name.toLowerCase().includes(query));
+    history = history.filter((meal) => {
+      const mealName = (meal.name || "").toLowerCase();
+      const ingredientMatch = Array.isArray(meal.items)
+        && meal.items.some((item) => (item.name || "").toLowerCase().includes(query));
+      return mealName.includes(query) || ingredientMatch;
+    });
   }
 
   if (history.length === 0) {

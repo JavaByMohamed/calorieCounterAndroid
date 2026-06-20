@@ -43,10 +43,10 @@ function displayIngredients() {
     const data = mockNutritionDB[name];
     html += `
       <li>
-        <strong>${name}</strong> -
-        Calories: ${data.calories.toFixed(2)},
-        Protein: ${data.protein.toFixed(2)}g,
-        Fat: ${data.fat.toFixed(2)}g,
+        <strong>${name}</strong> - 
+        Calories: ${data.calories.toFixed(2)}, 
+        Protein: ${data.protein.toFixed(2)}g, 
+        Fat: ${data.fat.toFixed(2)}g, 
         Carbs: ${data.carbs.toFixed(2)}g,
         Fiber: ${(data.fiber || 0).toFixed(2)}g
         <button class="edit-ingredient-btn" data-name="${name}">Edit</button>
@@ -157,4 +157,3 @@ document.addEventListener("DOMContentLoaded", async () => {
   await syncFromCloud();
   displayIngredients();
 });
-

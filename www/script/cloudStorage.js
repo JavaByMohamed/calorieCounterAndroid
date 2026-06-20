@@ -1,5 +1,5 @@
 // ☁️ Cloud Storage using JSONBin.io (Free tier: 10,000 requests/month)
-//
+// 
 // HOW TO SET UP:
 // 1. Go to https://jsonbin.io and create a free account
 // 2. Go to API Keys and copy your X-Master-Key
@@ -102,5 +102,4 @@ export async function loadFromCloud() {
   }
   return null;
 }
-
 

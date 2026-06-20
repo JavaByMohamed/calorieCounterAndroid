@@ -1,10 +1,11 @@
 {
   "scripts": {
+    "sync:web": "node tools/sync-web-to-www.js",
     "android:live": "node tools/android-live.js",
-    "android:phone": "cap copy android && cap run android",
-    "android:phone:sync": "cap sync android && cap run android",
-    "android:release:apk": "cap copy android && cd android && ./gradlew assembleRelease",
-    "android:release:aab": "cap copy android && cd android && ./gradlew bundleRelease",
+    "android:phone": "npm run sync:web && cap copy android && cap run android",
+    "android:phone:sync": "npm run sync:web && cap sync android && cap run android",
+    "android:release:apk": "npm run sync:web && cap copy android && cd android && ./gradlew assembleRelease",
+    "android:release:aab": "npm run sync:web && cap copy android && cd android && ./gradlew bundleRelease",
     "android:release:ship": "node tools/release-ship.js",
     "android:release:ship:sync": "node tools/release-ship.js --sync",
     "android:release:install": "node tools/release-install.js",

@@ -339,5 +339,3 @@ const firebaseInitPromise = initFirebase();
 function waitForFirebase() {
   return firebaseInitPromise;
 }
-
-

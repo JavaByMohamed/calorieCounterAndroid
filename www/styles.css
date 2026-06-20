@@ -1941,6 +1941,10 @@ footer {
   padding: 12px 6px;
   text-align: center;
   font-size: 12px;
+  width: 100%;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -2352,6 +2356,166 @@ small {
   background: #388e3c;
 }
 
+.saved-meal-search-section {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid #d8f0dd;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f8fffb, #f3fbff);
+}
+
+.saved-meal-search-section h4 {
+  color: #27ae60;
+  margin-bottom: 6px;
+}
+
+.saved-meal-search-section .nutrition-preview {
+  margin-top: 12px;
+}
+
+.edit-meal-notice {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #fff6df, #fffaf0);
+  border: 1px solid #f3c96b;
+  color: #8a5b00;
+  font-weight: 600;
+}
+
+.tracker-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.tracker-quick-card {
+  padding: 18px;
+  border: 1px solid #dfeee2;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fafffc, #f5fbff);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+}
+
+.tracker-quick-card h4 {
+  color: #27ae60;
+  margin-bottom: 6px;
+}
+
+.tracker-quick-card form {
+  margin-top: 10px;
+}
+
+.tracker-quick-macros {
+  margin-bottom: 10px;
+}
+
+.tracker-target-note {
+  margin: 4px 0 12px;
+  color: #666;
+  font-size: 12px;
+}
+
+.tracker-saved-meal-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.tracker-saved-meal-card button {
+  margin-top: auto;
+}
+
+.tracker-search-group .ingredient-dropdown-list {
+  z-index: 1000;
+}
+
+.quick-entry-card {
+  border-style: dashed;
+  border-color: #f1c40f;
+  background: linear-gradient(135deg, #fffef6, #fffaf0);
+}
+
+.quick-entry-summary {
+  text-align: left;
+}
+
+.week-summary-stack {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.week-progress-card,
+.week-totals-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #eefaf2, #eef5ff);
+  border: 1px solid #d5ead8;
+  margin-bottom: 12px;
+}
+
+.week-progress-card h5 {
+  color: #27ae60;
+  margin-bottom: 4px;
+  font-size: 15px;
+}
+
+.week-progress-range {
+  color: #777;
+  font-size: 12px;
+}
+
+.week-progress-total-line {
+  color: #2c3e50;
+  font-size: 14px;
+}
+
+.week-progress-meter {
+  flex: 1;
+  min-width: 220px;
+}
+
+.week-progress-meter-full {
+  width: 100%;
+}
+
+.week-macro-card {
+  align-items: stretch;
+}
+
+.week-range-bar {
+  height: 18px;
+}
+
+.week-range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.week-totals-card {
+  font-size: 13px;
+  color: #555;
+}
+
+.week-totals-card strong {
+  color: #2c3e50;
+  font-size: 16px;
+}
+
+.week-day-card.selected {
+  border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.18);
+}
+
 /* ============================================================
    RESPONSIVE / MOBILE-FRIENDLY OVERRIDES
    ============================================================ */
@@ -2421,6 +2585,25 @@ table {
 
   .api-source-toggle {
     flex-direction: column;
+  }
+
+  .tracker-quick-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tracker-quick-card {
+    padding: 14px;
+  }
+
+  .week-progress-card,
+  .week-totals-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .week-progress-meter {
+    width: 100%;
+    min-width: 0;
   }
 
   /* History filters stack vertically */

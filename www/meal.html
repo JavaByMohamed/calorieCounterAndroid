@@ -14,6 +14,16 @@
     <section class="meal-form">
       <h3 data-i18n="meal.addMeal">Add a Meal</h3>
 
+      <div class="saved-meal-search-section">
+        <h4 data-i18n="meal.savedMealSearch">📚 Find from Meal History</h4>
+        <p><small data-i18n="meal.savedMealSearchDesc">Search your saved meals here and load them directly into this view.</small></p>
+        <div class="form-group" style="position:relative;">
+          <label for="savedMealSearch" data-i18n="meal.searchSavedMeals">Search saved meals</label>
+          <input type="text" id="savedMealSearch" data-i18n-placeholder="meal.searchMealHistory" placeholder="Search meal history..." autocomplete="off" />
+          <div id="savedMealSearchResults" class="ingredient-dropdown-list" style="display:none;"></div>
+        </div>
+      </div>
+
       <!-- 🇸🇪 Swedish Food API Search -->
       <div class="api-search-section">
         <h4 data-i18n="meal.searchDb">🔍 Search Food Database</h4>
@@ -21,9 +31,6 @@
 
         <div class="api-source-toggle">
           <button type="button" class="api-source-btn active" data-source="stores" data-i18n="meal.storeProducts">🏪 Store Products</button>
-          <button type="button" class="api-source-btn" data-source="fatsecret" data-i18n="meal.fatSecret">🍽️ FatSecret</button>
-          <button type="button" class="api-source-btn" data-source="livsmedelsverket" data-i18n="meal.livsmedelsverket">📋 Livsmedelsverket</button>
-          <button type="button" class="api-source-btn" data-source="history">📚 Meal History</button>
         </div>
 
         <div class="form-group" style="position:relative;">
@@ -118,16 +125,21 @@
 
       <hr style="margin: 20px 0; border: none; border-top: 1px solid #ddd;" />
 
-      <h3 data-i18n="meal.addToTracker">📅 Add to Today's Tracker</h3>
-      <p><small data-i18n="meal.addToTrackerDesc">Log this meal as eaten today. This will save it to your daily intake tracker. Requires login.</small></p>
+      <h3 data-i18n="meal.addToTracker">📅 Add to Tracker</h3>
+      <p><small data-i18n="meal.addToTrackerDesc">Log this meal to your tracker on the chosen date. Requires login.</small></p>
+      <div class="form-group">
+        <label for="trackerDateTarget" data-i18n="meal.logDate">Log date</label>
+        <input type="date" id="trackerDateTarget" />
+        <small data-i18n="meal.logDateNote">Choose which date to save this meal to in your tracker.</small>
+      </div>
       <div class="form-group">
         <label for="trackerServings" data-i18n="meal.servingsEaten">Servings eaten</label>
         <input type="number" id="trackerServings" min="1" step="1" value="1" data-i18n-placeholder="meal.servingsEatenPlaceholder" placeholder="e.g. 1" />
         <small data-i18n="meal.servingsEatenNote">How many servings of this meal did you eat?</small>
       </div>
-      <button id="addToTrackerBtn" data-i18n="meal.addToTrackerBtn">📅 Add to Today's Tracker</button>
+      <button id="addToTrackerBtn" data-i18n="meal.addToTrackerBtn">📅 Add to Tracker</button>
 
-      <p style="margin-top: 15px;"><a href="meal-history.html" data-i18n="meal.viewHistory">📋 View Meal History</a> | <a href="daily-tracker.html" data-i18n="meal.viewTracker">📊 View Daily Tracker</a></p>
+      <p style="margin-top: 15px;"><a href="meal-history.html" data-i18n="meal.viewHistory">📋 View Meal History</a> | <a href="daily-tracker.html" id="viewTrackerLink" data-i18n="meal.viewTracker">📊 View Daily Tracker</a></p>
     </section>
   </main>
 

@@ -555,7 +555,10 @@ async function adminDeleteUser(userKey) {
   delete users[userKey];
   usersCache = users;
 
-  // 3. If deleted user was active, log out
+  // 3. Anonymize user's meals in cloud meal history
+  // (already done above in Firebase section)
+
+  // 4. If deleted user was active, log out
   if (getActiveUser() === userKey) {
     clearActiveUser();
     refreshHomeUI();
@@ -571,5 +574,3 @@ initFirebase().then(async () => {
   await loadUsersFromDB();
   refreshHomeUI();
 });
-
-

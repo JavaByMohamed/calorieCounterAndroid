@@ -66,7 +66,7 @@ async function getMealHistory() {
 function getMealsForUserAndDate(allMeals, username, dateStr) {
   return allMeals.filter((meal) => {
     const mealUser = (meal.username || "").toLowerCase();
-    const mealDate = meal.date ? meal.date.substring(0, 10) : "";
+    const mealDate = meal.entryDate || (meal.date ? meal.date.substring(0, 10) : "");
     // Only show meals that were explicitly added to the tracker (eaten meals)
     return meal.addedToTracker && mealUser === username.toLowerCase() && mealDate === dateStr;
   });
@@ -110,15 +110,121 @@ const dayWorkouts = document.getElementById("dayWorkouts");
 const updateGoalsBtn = document.getElementById("updateGoalsBtn");
 const userStatsSection = document.getElementById("userStatsSection");
 const userStatsContent = document.getElementById("userStatsContent");
+const weeklyBmrSummary = document.getElementById("weeklyBmrSummary");
+const quickEntryForm = document.getElementById("quickEntryForm");
+const savedMealLogForm = document.getElementById("savedMealLogForm");
+const trackerSavedMealSearch = document.getElementById("trackerSavedMealSearch");
+const trackerSavedMealResults = document.getElementById("trackerSavedMealResults");
+const trackerSavedMealPreview = document.getElementById("trackerSavedMealPreview");
+const openMealViewBtn = document.getElementById("openMealViewBtn");
+let selectedTrackerSavedMeal = null;
+
+function t(key, fallback) {
+  return typeof window.getTranslation === "function" ? window.getTranslation(key, fallback) : fallback;
+}
+
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateInput(dateStr) {
+  const [year, month, day] = String(dateStr).split("-").map(Number);
+  return new Date(year || 1970, (month || 1) - 1, day || 1, 12, 0, 0, 0);
+}
 
 function getTodayStr() {
-  return new Date().toISOString().substring(0, 10);
+  return formatLocalDate(new Date());
+}
+
+function isValidDateInput(dateStr) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(dateStr || ""));
 }
 
 function shiftDate(dateStr, days) {
-  const d = new Date(dateStr);
+  const d = parseDateInput(dateStr);
   d.setDate(d.getDate() + days);
-  return d.toISOString().substring(0, 10);
+  return formatLocalDate(d);
+}
+
+function buildTrackerIso(dateStr) {
+  return parseDateInput(dateStr).toISOString();
+}
+
+function getStartOfWeek(dateStr) {
+  const date = parseDateInput(dateStr);
+  const day = date.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diffToMonday);
+  return formatLocalDate(date);
+}
+
+function getWeekDates(dateStr) {
+  const start = getStartOfWeek(dateStr);
+  return Array.from({ length: 7 }, (_, index) => shiftDate(start, index));
+}
+
+function getRequestedTrackerDate() {
+  const requestedDate = new URLSearchParams(window.location.search).get("date");
+  return isValidDateInput(requestedDate) ? requestedDate : "";
+}
+
+function updateTrackerUrl(dateStr) {
+  if (!isValidDateInput(dateStr) || !window.history?.replaceState) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set("date", dateStr);
+  window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function buildMealPageUrl(dateStr) {
+  const url = new URL("meal.html", window.location.href);
+  if (isValidDateInput(dateStr)) {
+    url.searchParams.set("date", dateStr);
+  }
+  url.searchParams.set("return", "daily-tracker.html");
+  return url.toString();
+}
+
+function formatRangeStatus(consumedCalories, minCalories, maxCalories, lowerLabel, upperLabel) {
+  if (maxCalories <= 0) {
+    return {
+      state: "none",
+      message: t("tracker.logsToSelectedDate", "Entries are saved to the currently selected date above."),
+      progressPct: 0,
+      markerPct: 0,
+      barColor: "#e74c3c",
+    };
+  }
+
+  const progressPct = Math.min(100, (consumedCalories / maxCalories) * 100);
+  const markerPct = minCalories > 0 ? (minCalories / maxCalories) * 100 : 0;
+  if (consumedCalories > maxCalories) {
+    return {
+      state: "over",
+      message: `⚠️ Over ${upperLabel} by ${(consumedCalories - maxCalories).toFixed(0)} kcal`,
+      progressPct,
+      markerPct,
+      barColor: "#e74c3c",
+    };
+  }
+  if (minCalories > 0 && consumedCalories < minCalories) {
+    return {
+      state: "below",
+      message: `⚠️ Below ${lowerLabel} — ${(minCalories - consumedCalories).toFixed(0)} kcal to go`,
+      progressPct,
+      markerPct,
+      barColor: "#f39c12",
+    };
+  }
+  return {
+    state: "in-range",
+    message: `✅ In range — ${(maxCalories - consumedCalories).toFixed(0)} kcal left until ${upperLabel}`,
+    progressPct,
+    markerPct,
+    barColor: "#27ae60",
+  };
 }
 
 // ==================== DONUT CHART (pure canvas) ====================
@@ -188,10 +294,14 @@ function renderDonutLegend(macros) {
 }
 
 // ==================== PROGRESS BARS ====================
-function renderMacroProgress(goals, consumed) {
+function createMacroProgressHtml(goals, consumed, options = {}) {
   const caloriesMin = goals.caloriesMin || 0;
   const caloriesMax = goals.caloriesMax || goals.calories || 0;
   const calEaten = consumed.calories || 0;
+  const calorieLabel = options.calorieLabel || "Calories";
+  const lowerLabel = options.lowerLabel || "BMR";
+  const upperLabel = options.upperLabel || "TDEE";
+  const zeroGoalMessage = options.zeroGoalMessage || '⚠️ <a href="bmi-bmr.html">Calculate BMI & BMR</a> to set your calorie range';
 
   const macros = [
     { label: "Protein", key: "protein", unit: "g", color: "#3498db" },
@@ -199,61 +309,53 @@ function renderMacroProgress(goals, consumed) {
     { label: "Carbs", key: "carbs", unit: "g", color: "#9b59b6" },
     { label: "Fiber", key: "fiber", unit: "g", color: "#1abc9c" },
   ];
+  const hasCalorieRange = caloriesMin > 0 && caloriesMax > 0;
+  const rangeFactor = hasCalorieRange ? Math.min(1, caloriesMin / caloriesMax) : 0;
 
   let html = '<div class="macro-progress-container">';
 
   // Calorie range bar (BMR – TDEE)
   if (caloriesMin > 0 && caloriesMax > 0) {
-    const pct = caloriesMax > 0 ? Math.min(100, (calEaten / caloriesMax) * 100) : 0;
-    const minPct = caloriesMax > 0 ? (caloriesMin / caloriesMax) * 100 : 0;
-    const belowMin = calEaten < caloriesMin;
-    const overMax = calEaten > caloriesMax;
-    const barColor = overMax ? '#e74c3c' : (belowMin ? '#f39c12' : '#27ae60');
-
-    let statusText;
-    if (overMax) {
-      statusText = `⚠️ Over TDEE by ${(calEaten - caloriesMax).toFixed(0)} kcal`;
-    } else if (belowMin) {
-      statusText = `⚠️ Below BMR — eat at least ${(caloriesMin - calEaten).toFixed(0)} more kcal`;
-    } else {
-      statusText = `✅ In range — ${(caloriesMax - calEaten).toFixed(0)} kcal left until TDEE`;
-    }
+    const rangeStatus = formatRangeStatus(calEaten, caloriesMin, caloriesMax, lowerLabel, upperLabel);
 
     html += `
       <div class="macro-row">
         <div class="macro-label">
-          <strong>Calories</strong>
+          <strong>${calorieLabel}</strong>
           <span class="macro-numbers">${calEaten.toFixed(0)} kcal</span>
         </div>
         <div class="macro-bar-bg" style="position:relative;">
-          <div class="macro-bar-fill" style="width:${pct}%; background:${barColor};"></div>
-          <div class="calorie-range-marker" style="position:absolute; left:${minPct}%; top:0; bottom:0; width:2px; background:#333; opacity:0.5;" title="BMR (${caloriesMin} kcal)"></div>
+          <div class="macro-bar-fill macro-range-${rangeStatus.state}" style="width:${rangeStatus.progressPct}%; background:${rangeStatus.barColor};"></div>
+          <div class="calorie-range-marker" style="position:absolute; left:${rangeStatus.markerPct}%; top:0; bottom:0; width:2px; background:#333; opacity:0.5;" title="${lowerLabel} (${caloriesMin} kcal)"></div>
         </div>
         <div class="macro-range-labels" style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-top:2px;">
-          <span>BMR: ${caloriesMin} kcal</span>
-          <span>TDEE: ${caloriesMax} kcal</span>
+          <span>${lowerLabel}: ${caloriesMin} kcal</span>
+          <span>${upperLabel}: ${caloriesMax} kcal</span>
         </div>
-        <div class="macro-remaining ${overMax ? 'over-text' : ''}}" style="margin-top:2px;">
-          ${statusText}
+        <div class="macro-remaining ${rangeStatus.state === 'over' ? 'over-text' : ''}" style="margin-top:2px;">
+          ${rangeStatus.message}
         </div>
       </div>
     `;
   } else {
     // No BMR/TDEE set — show basic calorie bar
     const goal = goals.calories || 0;
-    const pct = goal > 0 ? Math.min(100, (calEaten / goal) * 100) : 0;
+    const visualMax = goal > 0 ? Math.max(goal, calEaten) : 0;
+    const pct = visualMax > 0 ? Math.min(100, (calEaten / visualMax) * 100) : 0;
+    const markerPct = goal > 0 && visualMax > 0 ? (goal / visualMax) * 100 : 0;
     const over = calEaten > goal && goal > 0;
     html += `
       <div class="macro-row">
         <div class="macro-label">
-          <strong>Calories</strong>
+          <strong>${calorieLabel}</strong>
           <span class="macro-numbers">${calEaten.toFixed(1)} / ${goal.toFixed(0)} kcal</span>
         </div>
-        <div class="macro-bar-bg">
+        <div class="macro-bar-bg" style="position:relative;">
           <div class="macro-bar-fill ${over ? 'over' : ''}" style="width:${pct}%; background:${over ? '#e74c3c' : '#e74c3c'};"></div>
+          ${goal > 0 ? `<div class="calorie-range-marker" style="position:absolute; left:${markerPct}%; top:0; bottom:0; width:2px; background:#333; opacity:0.5;" title="Target (${goal} kcal)"></div>` : ""}
         </div>
         <div class="macro-remaining">
-          ${goal === 0 ? '⚠️ <a href="bmi-bmr.html">Calculate BMI & BMR</a> to set your calorie range' : (over ? `⚠️ Over by ${(calEaten - goal).toFixed(1)} kcal` : `✅ ${(goal - calEaten).toFixed(1)} kcal left`)}
+          ${goal === 0 ? zeroGoalMessage : (over ? `⚠️ Over by ${(calEaten - goal).toFixed(1)} kcal` : `✅ ${(goal - calEaten).toFixed(1)} kcal left`)}
         </div>
       </div>
     `;
@@ -263,9 +365,59 @@ function renderMacroProgress(goals, consumed) {
   macros.forEach((m) => {
     const goal = goals[m.key] || 0;
     const eaten = consumed[m.key] || 0;
+    if (goal === 0) {
+      html += `
+        <div class="macro-row">
+          <div class="macro-label">
+            <strong>${m.label}</strong>
+            <span class="macro-numbers">${eaten.toFixed(1)} / 0 ${m.unit}</span>
+          </div>
+          <div class="macro-bar-bg"></div>
+          <div class="macro-remaining">—</div>
+        </div>
+      `;
+      return;
+    }
+
+    if (hasCalorieRange) {
+      const lowerGoal = +(goal * rangeFactor).toFixed(1);
+      const upperGoal = goal;
+      const progressPct = upperGoal > 0 ? Math.min(100, (eaten / upperGoal) * 100) : 0;
+      const markerPct = upperGoal > 0 ? (lowerGoal / upperGoal) * 100 : 0;
+      const isOver = eaten > upperGoal;
+      const isBelow = eaten < lowerGoal;
+      const state = isOver ? "over" : (isBelow ? "below" : "in-range");
+      const message = isOver
+        ? `⚠️ Over ${upperLabel} by ${(eaten - upperGoal).toFixed(1)} ${m.unit}`
+        : (isBelow
+          ? `⚠️ Below ${lowerLabel} - ${(lowerGoal - eaten).toFixed(1)} ${m.unit} to go`
+          : `✅ In range - ${(upperGoal - eaten).toFixed(1)} ${m.unit} left until ${upperLabel}`);
+
+      html += `
+        <div class="macro-row">
+          <div class="macro-label">
+            <strong>${m.label}</strong>
+            <span class="macro-numbers">${eaten.toFixed(1)} ${m.unit}</span>
+          </div>
+          <div class="macro-bar-bg" style="position:relative;">
+                <div class="macro-bar-fill macro-range-${state}" style="width:${progressPct}%; background:${m.color};"></div>
+            <div class="calorie-range-marker" style="position:absolute; left:${markerPct}%; top:0; bottom:0; width:2px; background:#333; opacity:0.5;" title="${lowerLabel} ${m.label} (${lowerGoal.toFixed(1)} ${m.unit})"></div>
+          </div>
+          <div class="macro-range-labels" style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-top:2px;">
+            <span>${lowerLabel}: ${lowerGoal.toFixed(1)} ${m.unit}</span>
+            <span>${upperLabel}: ${upperGoal.toFixed(1)} ${m.unit}</span>
+          </div>
+          <div class="macro-remaining ${state === 'over' ? 'over-text' : ''}">${message}</div>
+        </div>
+      `;
+      return;
+    }
+
     const remaining = Math.max(0, goal - eaten);
-    const pct = goal > 0 ? Math.min(100, (eaten / goal) * 100) : 0;
-    const over = eaten > goal && goal > 0;
+    const visualMax = Math.max(goal, eaten);
+    const pct = visualMax > 0 ? Math.min(100, (eaten / visualMax) * 100) : 0;
+    const markerPct = visualMax > 0 ? (goal / visualMax) * 100 : 0;
+    const over = eaten > goal;
 
     html += `
       <div class="macro-row">
@@ -273,17 +425,22 @@ function renderMacroProgress(goals, consumed) {
           <strong>${m.label}</strong>
           <span class="macro-numbers">${eaten.toFixed(1)} / ${goal.toFixed(0)} ${m.unit}</span>
         </div>
-        <div class="macro-bar-bg">
-          <div class="macro-bar-fill ${over ? 'over' : ''}" style="width:${pct}%; background:${over ? '#e74c3c' : m.color};"></div>
+        <div class="macro-bar-bg" style="position:relative;">
+          <div class="macro-bar-fill" style="width:${pct}%; background:${m.color};"></div>
+          <div class="calorie-range-marker" style="position:absolute; left:${markerPct}%; top:0; bottom:0; width:2px; background:#333; opacity:0.5;" title="${m.label} target (${goal} ${m.unit})"></div>
         </div>
         <div class="macro-remaining ${over ? 'over-text' : ''}">
-          ${goal === 0 ? '—' : (over ? `⚠️ Over by ${(eaten - goal).toFixed(1)} ${m.unit}` : `✅ ${remaining.toFixed(1)} ${m.unit} left`)}
+          ${over ? `⚠️ Over by ${(eaten - goal).toFixed(1)} ${m.unit}` : `✅ ${remaining.toFixed(1)} ${m.unit} left`}
         </div>
       </div>
     `;
   });
   html += "</div>";
-  macroProgress.innerHTML = html;
+  return html;
+}
+
+function renderMacroProgress(goals, consumed) {
+  macroProgress.innerHTML = createMacroProgressHtml(goals, consumed);
 }
 
 // --- Save meal history helper ---
@@ -316,8 +473,10 @@ function computeItemTotals(items) {
 }
 
 function renderDayMeals(meals) {
+  const targetDate = trackerDate?.value || getRequestedTrackerDate() || getTodayStr();
+  const addMealUrl = buildMealPageUrl(targetDate);
   if (meals.length === 0) {
-    dayMeals.innerHTML = '<p>No meals logged for this day. <a href="meal.html">Add a meal →</a></p>';
+    dayMeals.innerHTML = `<p>No meals logged for this day. <a href="${addMealUrl}">Add a meal →</a></p>`;
     return;
   }
 
@@ -326,6 +485,29 @@ function renderDayMeals(meals) {
     const time = new Date(meal.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     const servingsEaten = meal.servingsEaten || 1;
     const totalServings = meal.servings || 1;
+
+    if (meal.quickEntry) {
+      html += `
+        <div class="saved-meal-card quick-entry-card" id="mealCard_${meal.id}">
+          <div class="meal-card-header">
+            <h4>${meal.name}</h4>
+            <span class="meal-date">🕐 ${time}</span>
+            <span class="serving-badge">⚡ Quick entry</span>
+            <div class="meal-card-actions">
+              <button class="delete-btn delete-tracker-meal-btn" data-id="${meal.id}" title="Remove from tracker">🗑️ Delete</button>
+            </div>
+          </div>
+          <p class="meal-totals quick-entry-summary">
+            <strong>${meal.totals.calories.toFixed(1)} cal</strong> |
+            ${meal.totals.protein.toFixed(1)}g protein |
+            ${meal.totals.fat.toFixed(1)}g fat |
+            ${meal.totals.carbs.toFixed(1)}g carbs |
+            ${(meal.totals.fiber || 0).toFixed(1)}g fiber
+          </p>
+        </div>`;
+      return;
+    }
+
     html += `
       <div class="saved-meal-card" id="mealCard_${meal.id}">
         <div class="meal-card-header">
@@ -416,7 +598,7 @@ function renderDayMeals(meals) {
       }
       const reuseData = { ...meal, _requestedPortions: portionsToLog };
       sessionStorage.setItem("reuseMeal", JSON.stringify(reuseData));
-      window.location.href = "meal.html";
+      window.location.href = buildMealPageUrl(trackerDate?.value || meal.entryDate || getTodayStr());
     });
   });
 }
@@ -708,31 +890,181 @@ function renderUserStats(user) {
   userStatsContent.innerHTML = html;
 }
 
-// ==================== WEEK SUMMARY ====================
-function renderWeekSummaryAsync(username, currentDate, allMeals, allWorkouts) {
-  const container = document.getElementById("weekSummary");
-  let html = '<div class="week-grid">';
+function resetTrackerSavedMealSelection() {
+  selectedTrackerSavedMeal = null;
+  if (trackerSavedMealPreview) {
+    trackerSavedMealPreview.style.display = "none";
+    trackerSavedMealPreview.innerHTML = "";
+  }
+  const portionsInput = document.getElementById("trackerSavedMealPortions");
+  if (portionsInput) portionsInput.value = 1;
+}
 
-  for (let i = 6; i >= 0; i--) {
-    const dateStr = shiftDate(currentDate, -i);
+function showTrackerSavedMealPreview(meal) {
+  if (!trackerSavedMealPreview) return;
+  const totals = meal?.totals || {};
+  const servings = meal?.servings || 1;
+  trackerSavedMealPreview.style.display = "block";
+  trackerSavedMealPreview.innerHTML = `
+    <h5>📚 ${meal.name}</h5>
+    <p>
+      <strong>Total:</strong> ${(totals.calories || 0).toFixed(1)} kcal |
+      ${(totals.protein || 0).toFixed(1)}g protein |
+      ${(totals.fat || 0).toFixed(1)}g fat |
+      ${(totals.carbs || 0).toFixed(1)}g carbs |
+      ${(totals.fiber || 0).toFixed(1)}g fiber
+    </p>
+    <p><small>Recipe servings: ${servings}</small></p>
+  `;
+}
+
+function initTrackerSavedMealSearch() {
+  if (!trackerSavedMealSearch || !trackerSavedMealResults) return;
+
+  let debounceTimer = null;
+  trackerSavedMealSearch.addEventListener("input", function () {
+    clearTimeout(debounceTimer);
+    const query = this.value.trim().toLowerCase();
+    resetTrackerSavedMealSelection();
+
+    if (query.length < 2) {
+      trackerSavedMealResults.style.display = "none";
+      return;
+    }
+
+    debounceTimer = setTimeout(async () => {
+      trackerSavedMealResults.innerHTML = '<div class="ingredient-option disabled">Searching saved meals...</div>';
+      trackerSavedMealResults.style.display = "block";
+
+      const allMeals = await getMealHistory();
+      const savedMeals = allMeals.filter((meal) => !meal.addedToTracker);
+      const filtered = savedMeals.filter((meal) => {
+        const mealName = (meal.name || "").toLowerCase();
+        const ingredientMatch = Array.isArray(meal.items)
+          && meal.items.some((item) => (item.name || "").toLowerCase().includes(query));
+        return mealName.includes(query) || ingredientMatch;
+      });
+
+      if (filtered.length === 0) {
+        trackerSavedMealResults.innerHTML = '<div class="ingredient-option disabled">No saved meals found.</div>';
+        return;
+      }
+
+      window._trackerSavedMealResults = filtered;
+      trackerSavedMealResults.innerHTML = filtered.map((meal, index) => `
+        <div class="ingredient-option" data-index="${index}">
+          <strong>${meal.name}</strong><br>
+          <small>🍽️ ${meal.servings || 1} serving${(meal.servings || 1) !== 1 ? "s" : ""} · ${(meal.totals?.calories || 0).toFixed(1)} kcal</small>
+        </div>
+      `).join("");
+
+      trackerSavedMealResults.querySelectorAll(".ingredient-option:not(.disabled)").forEach((option) => {
+        option.addEventListener("click", () => {
+          const meal = window._trackerSavedMealResults?.[parseInt(option.getAttribute("data-index"), 10)];
+          if (!meal) return;
+          selectedTrackerSavedMeal = meal;
+          trackerSavedMealSearch.value = meal.name || "";
+          trackerSavedMealResults.style.display = "none";
+          const portionsInput = document.getElementById("trackerSavedMealPortions");
+          if (portionsInput) portionsInput.value = 1;
+          showTrackerSavedMealPreview(meal);
+        });
+      });
+    }, 250);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!trackerSavedMealSearch.parentElement.contains(event.target)) {
+      trackerSavedMealResults.style.display = "none";
+    }
+  });
+}
+
+// ==================== WEEK SUMMARY ====================
+function renderWeekSummaryAsync(username, currentDate, allMeals, allWorkouts, goals) {
+  const container = document.getElementById("weekSummary");
+  const weekDates = getWeekDates(currentDate);
+  const weekLabel = `${new Date(weekDates[0] + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })} - ${new Date(weekDates[6] + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+  const daySummaries = weekDates.map((dateStr) => {
     const meals = getMealsForUserAndDate(allMeals, username, dateStr);
     const totals = computeDayTotals(meals);
     const workouts = getWorkoutsForDate(allWorkouts, dateStr);
+    return { dateStr, meals, totals, workouts };
+  });
+
+  const weeklyTotals = daySummaries.reduce((acc, day) => {
+    acc.calories += day.totals.calories;
+    acc.protein += day.totals.protein;
+    acc.fat += day.totals.fat;
+    acc.carbs += day.totals.carbs;
+    acc.fiber += day.totals.fiber;
+    return acc;
+  }, { calories: 0, protein: 0, fat: 0, carbs: 0, fiber: 0 });
+
+  const weeklyGoals = {
+    calories: (goals.calories || 0) * 7,
+    caloriesMin: (goals.caloriesMin || 0) * 7,
+    caloriesMax: (goals.caloriesMax || goals.calories || 0) * 7,
+    protein: (goals.protein || 0) * 7,
+    fat: (goals.fat || 0) * 7,
+    carbs: (goals.carbs || 0) * 7,
+    fiber: (goals.fiber || 0) * 7,
+  };
+
+  if (weeklyBmrSummary) {
+    const weeklyTargetBaseline = weeklyGoals.caloriesMin || weeklyGoals.caloriesMax || weeklyGoals.calories;
+    const weeklyTargetLabel = weeklyTargetBaseline > 0
+      ? `${weeklyTotals.calories.toFixed(0)} kcal eaten / ${weeklyTargetBaseline.toFixed(0)} kcal target`
+      : `${weeklyTotals.calories.toFixed(0)} kcal eaten this week`;
+    const weeklyRemainingMessage = weeklyTargetBaseline > 0
+      ? (weeklyTotals.calories <= weeklyTargetBaseline
+        ? `✅ You have ${(weeklyTargetBaseline - weeklyTotals.calories).toFixed(0)} kcal left for this week.`
+        : `⚠️ You are ${(weeklyTotals.calories - weeklyTargetBaseline).toFixed(0)} kcal over for this week.`)
+      : "";
+
+    weeklyBmrSummary.innerHTML = `
+      <div class="week-progress-card week-overview-card">
+        <div>
+          <h5>Week window: ${weekLabel}</h5>
+          <p class="week-progress-range">Mon 00:00 to Sun 23:59</p>
+        </div>
+        <div class="week-progress-total-line">
+          <strong>${weeklyTargetLabel}</strong>
+          ${weeklyRemainingMessage ? `<div class="macro-remaining ${weeklyTotals.calories > weeklyTargetBaseline ? 'over-text' : ''}">${weeklyRemainingMessage}</div>` : ""}
+        </div>
+      </div>
+
+    `;
+  }
+
+  let html = '<div class="week-grid">';
+  daySummaries.forEach(({ dateStr, meals, totals, workouts }) => {
     const isToday = dateStr === getTodayStr();
+    const isSelected = dateStr === currentDate;
     const dayLabel = new Date(dateStr + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
 
     html += `
-      <div class="week-day-card ${isToday ? 'today' : ''} ${meals.length === 0 ? 'empty' : ''}">
+      <button type="button" class="week-day-card ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${meals.length === 0 ? 'empty' : ''}" data-date="${dateStr}">
         <div class="week-day-label">${dayLabel}</div>
         <div class="week-day-cal">${totals.calories.toFixed(0)} kcal</div>
         <div class="week-day-detail">
           🍽️ ${meals.length} meal${meals.length !== 1 ? 's' : ''} · 💪 ${workouts.length} exercise${workouts.length !== 1 ? 's' : ''}
         </div>
-      </div>
+      </button>
     `;
-  }
-  html += "</div>";
+  });
+
+  html += `</div>`;
   container.innerHTML = html;
+
+  container.querySelectorAll(".week-day-card").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextDate = button.getAttribute("data-date");
+      if (!isValidDateInput(nextDate)) return;
+      trackerDate.value = nextDate;
+      refreshTracker();
+    });
+  });
 }
 
 // ==================== MAIN REFRESH ====================
@@ -775,9 +1107,10 @@ async function refreshTracker() {
 
   // Show tracker
   trackerContent.style.display = "block";
-  if (!trackerDate.value) trackerDate.value = getTodayStr();
+  if (!trackerDate.value) trackerDate.value = getRequestedTrackerDate() || getTodayStr();
 
   const dateStr = trackerDate.value;
+  updateTrackerUrl(dateStr);
 
   // Load meal history and workouts from Firebase
   const allMeals = await getMealHistory();
@@ -800,11 +1133,63 @@ async function refreshTracker() {
   renderDayWorkouts(dayWorkoutsData);
 
   // Week summary (needs all meals for the week)
-  renderWeekSummaryAsync(username, dateStr, allMeals, allWorkouts);
+  renderWeekSummaryAsync(username, dateStr, allMeals, allWorkouts, goals);
 }
 
 // --- Event Listeners ---
 trackerDate.addEventListener("change", refreshTracker);
+
+if (quickEntryForm) {
+  quickEntryForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const username = getActiveUsername();
+    if (!username) return;
+
+    const entryName = (document.getElementById("quickEntryName")?.value || "").trim() || "Quick entry";
+    const calories = parseFloat(document.getElementById("quickEntryCalories")?.value);
+    const protein = parseFloat(document.getElementById("quickEntryProtein")?.value) || 0;
+    const fat = parseFloat(document.getElementById("quickEntryFat")?.value) || 0;
+    const carbs = parseFloat(document.getElementById("quickEntryCarbs")?.value) || 0;
+    const fiber = parseFloat(document.getElementById("quickEntryFiber")?.value) || 0;
+
+    if (isNaN(calories) || calories < 0) {
+      alert("Enter a valid calorie amount.");
+      return;
+    }
+
+    const targetDate = trackerDate.value || getTodayStr();
+    const quickEntry = {
+      id: Date.now(),
+      username,
+      name: entryName,
+      servings: 1,
+      servingsEaten: 1,
+      entryDate: targetDate,
+      date: buildTrackerIso(targetDate),
+      addedToTracker: true,
+      quickEntry: true,
+      items: [{ name: entryName.toLowerCase(), amount: 1, calories, protein, fat, carbs, fiber }],
+      totals: { calories, protein, fat, carbs, fiber },
+      perServing: { calories, protein, fat, carbs, fiber },
+    };
+
+    const allHistory = await getMealHistory();
+    allHistory.unshift(quickEntry);
+    await saveMealHistory(allHistory);
+    quickEntryForm.reset();
+    ["quickEntryProtein", "quickEntryFat", "quickEntryCarbs", "quickEntryFiber"].forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) input.value = 0;
+    });
+    refreshTracker();
+  });
+}
+
+if (openMealViewBtn) {
+  openMealViewBtn.addEventListener("click", () => {
+    window.location.href = buildMealPageUrl(trackerDate.value || getRequestedTrackerDate() || getTodayStr());
+  });
+}
 
 document.getElementById("todayBtn").addEventListener("click", () => {
   trackerDate.value = getTodayStr();
@@ -845,5 +1230,3 @@ if (typeof waitForFirebase === "function") {
 } else {
   refreshTracker();
 }
-
-

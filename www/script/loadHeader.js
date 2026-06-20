@@ -77,4 +77,3 @@ function performLogout() {
 
 // Call the function to load the header
 loadHeader();
-

@@ -24,6 +24,7 @@ const releaseApkPath = path.join(
   "release",
   "app-release.apk"
 );
+const syncWebScriptPath = path.join(projectRoot, "tools", "sync-web-to-www.js");
 
 const args = process.argv.slice(2);
 const shouldSync = args.includes("--sync");
@@ -54,6 +55,15 @@ function run(command, commandArgs, options = {}) {
   }
 
   return result;
+}
+
+function syncRootWebAssets() {
+  if (!fs.existsSync(syncWebScriptPath)) {
+    throw new Error(`Missing web sync helper at ${syncWebScriptPath}`);
+  }
+
+  console.log("[release] Syncing root web assets into www...");
+  run("node", [syncWebScriptPath]);
 }
 
 function parseLocalSdkDir() {
@@ -297,6 +307,7 @@ try {
    const bumpedVersion = bumpAndroidVersion();
    const { newName } = bumpedVersion;
    syncUpdaterCurrentVersion(newName);
+   syncRootWebAssets();
 
    if (shouldSync) {
      console.log("[release] Running: npx cap sync android");

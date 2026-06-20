@@ -67,6 +67,50 @@
         <button id="nextDayBtn" data-i18n="tracker.next">Next ▶</button>
       </div>
 
+      <div class="tracker-quick-grid">
+        <section class="tracker-quick-card">
+          <h4 data-i18n="tracker.quickEntryTitle">⚡ Quick Entry</h4>
+          <p><small data-i18n="tracker.quickEntryDesc">Add a fast calorie or macro entry straight to the selected date.</small></p>
+          <form id="quickEntryForm">
+            <div class="form-group">
+              <label for="quickEntryName" data-i18n="tracker.quickEntryName">Entry name</label>
+              <input type="text" id="quickEntryName" data-i18n-placeholder="tracker.quickEntryNamePlaceholder" placeholder="e.g. Protein shake, snack, coffee" />
+            </div>
+            <div class="macro-goals-grid tracker-quick-macros">
+              <div class="form-group">
+                <label for="quickEntryCalories" data-i18n="tracker.calories">Calories (kcal)</label>
+                <input type="number" id="quickEntryCalories" min="0" step="0.1" required />
+              </div>
+              <div class="form-group">
+                <label for="quickEntryProtein" data-i18n="tracker.protein">Protein (g)</label>
+                <input type="number" id="quickEntryProtein" min="0" step="0.1" value="0" />
+              </div>
+              <div class="form-group">
+                <label for="quickEntryFat" data-i18n="tracker.fat">Fat (g)</label>
+                <input type="number" id="quickEntryFat" min="0" step="0.1" value="0" />
+              </div>
+              <div class="form-group">
+                <label for="quickEntryCarbs" data-i18n="tracker.carbs">Carbs (g)</label>
+                <input type="number" id="quickEntryCarbs" min="0" step="0.1" value="0" />
+              </div>
+              <div class="form-group">
+                <label for="quickEntryFiber" data-i18n="tracker.fiber">Fiber (g)</label>
+                <input type="number" id="quickEntryFiber" min="0" step="0.1" value="0" />
+              </div>
+            </div>
+            <p class="tracker-target-note" data-i18n="tracker.logsToSelectedDate">Entries are saved to the currently selected date above.</p>
+            <button type="submit" id="quickEntrySubmitBtn" data-i18n="tracker.quickEntryAdd">➕ Add Quick Entry</button>
+          </form>
+        </section>
+
+        <section class="tracker-quick-card tracker-saved-meal-card">
+          <h4 data-i18n="tracker.addMealTitle">🍽️ Add Meal</h4>
+          <p><small data-i18n="tracker.addMealDesc">Open the meal builder and log a meal to the date currently selected above.</small></p>
+          <p class="tracker-target-note" data-i18n="tracker.logsToSelectedDate">Entries are saved to the currently selected date above.</p>
+          <button type="button" id="openMealViewBtn" data-i18n="tracker.addMealBtn">➕ Open Add Meal View</button>
+        </section>
+      </div>
+
       <!-- Donut Chart + Macro Progress -->
       <div class="tracker-grid">
         <div class="chart-container">
@@ -92,7 +136,8 @@
 
       <!-- Recent Days Summary -->
       <div class="day-history-section">
-        <h4 data-i18n="tracker.last7Days">📆 Last 7 Days Overview</h4>
+        <h4 data-i18n="tracker.currentWeekSummary">📆 Current Week (Monday-Sunday)</h4>
+        <div id="weeklyBmrSummary"></div>
         <div id="weekSummary"></div>
       </div>
     </section>
@@ -128,4 +173,3 @@
   <script src="script/dailyTracker.js"></script>
 </body>
 </html>
-

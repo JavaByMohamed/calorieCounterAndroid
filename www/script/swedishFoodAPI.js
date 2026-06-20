@@ -199,79 +199,132 @@ export async function searchSwedishStoreProducts(query) {
         fat: 0,
         carbs: 0,
         fiber: 0,
-        source: "Willys API",
+        source: "Willys + Open Food Facts",
+        _nutritionLoaded: false,
       };
     });
 
-    // Enrich with nutrition data
-    for (const product of mapped) {
-      if (product.ean) {
-        const nutrition = await getNutritionByBarcode(product.ean);
+    // Fetch nutrition for all products in parallel:
+    // 1st try: Open Food Facts barcode lookup (fast, exact)
+    // 2nd try: Open Food Facts text search by product name (slower, fuzzy)
+    const nutritionPromises = mapped.map(async (product) => {
+      // Try barcode lookup first
+      let nutrition = await getNutritionByBarcode(product.ean);
+
+      // Fallback: text search by product name if barcode failed
+      if (!nutrition && product.name) {
+        const searchName = product.brand
+          ? `${product.name} ${product.brand}`
+          : product.name;
+        console.log(`[Store Search] Barcode miss for "${product.name}", trying text search...`);
+        nutrition = await getNutritionByNameSearch(searchName);
         if (nutrition) {
-          Object.assign(product, nutrition, { source: "Willys + Open Food Facts" });
-          continue;
+          product.source = nutrition._source || "Open Food Facts (text search)";
+          console.log(`[Store Search] Text search found: "${nutrition._matchedName}" for "${product.name}"`);
         }
       }
-      const nutrition = await getNutritionByNameSearch(product.name);
-      if (nutrition) {
-        Object.assign(product, nutrition, { source: nutrition._source });
-      }
-    }
 
-    return mapped;
+      if (nutrition) {
+        product.calories = nutrition.calories;
+        product.protein = nutrition.protein;
+        product.fat = nutrition.fat;
+        product.carbs = nutrition.carbs;
+        product.fiber = nutrition.fiber;
+        product._nutritionLoaded = true;
+      }
+      return product;
+    });
+
+    const results = await Promise.all(nutritionPromises);
+    console.log("[Store Search] Nutrition loaded for",
+      results.filter(r => r._nutritionLoaded).length, "/", results.length, "products");
+
+    return results;
   } catch (err) {
-    console.error("[Store Search] Error:", err);
+    console.error("[Store Search] Willys search failed:", err.message);
+    // Fallback: try Open Food Facts v2 API directly
     return searchOpenFoodFactsFallback(query);
   }
 }
 
 /**
- * Fallback: Search Open Food Facts directly when Willys is blocked
+ * Fallback: search Open Food Facts v2 API directly (in case Willys API is blocked/down)
+ * Uses text search first, then category search as a second attempt.
  */
 async function searchOpenFoodFactsFallback(query) {
   try {
-    const nutrition = await getNutritionByNameSearch(query);
-    if (nutrition) {
-      return [{
-        name: nutrition._matchedName || query,
-        stores: "Open Food Facts",
-        calories: nutrition.calories,
-        protein: nutrition.protein,
-        fat: nutrition.fat,
-        carbs: nutrition.carbs,
-        fiber: nutrition.fiber,
-        source: nutrition._source,
-      }];
+    // Try text search first (more reliable than category search)
+    const textUrl = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query.trim())}&search_simple=1&json=1&page_size=10`;
+    console.log("[Store Search] Fallback text search:", textUrl);
+    let response = await fetch(textUrl);
+    let data = response.ok ? await response.json() : { products: [] };
+
+    // If text search returns nothing, try category search
+    if (!data.products || data.products.length === 0) {
+      const catUrl = `https://world.openfoodfacts.org/api/v2/search?categories_tags_en=${encodeURIComponent(query.trim())}&countries_tags_en=sweden&fields=product_name,brands,stores,nutriments,code&page_size=10`;
+      console.log("[Store Search] Fallback category search:", catUrl);
+      response = await fetch(catUrl);
+      if (!response.ok) return [];
+      data = await response.json();
     }
+
+    return (data.products || [])
+      .filter(p => p.product_name)
+      .map(p => ({
+        id: p.code || "",
+        name: p.product_name,
+        brand: p.brands || "",
+        stores: p.stores || "Sweden",
+        calories: Math.round(p.nutriments?.["energy-kcal_100g"] || 0),
+        protein: Math.round((p.nutriments?.["proteins_100g"] || 0) * 10) / 10,
+        fat: Math.round((p.nutriments?.["fat_100g"] || 0) * 10) / 10,
+        carbs: Math.round((p.nutriments?.["carbohydrates_100g"] || 0) * 10) / 10,
+        fiber: Math.round((p.nutriments?.["fiber_100g"] || 0) * 10) / 10,
+        source: "Open Food Facts",
+      }));
   } catch (err) {
-    console.error("[Fallback] Error:", err);
+    console.error("[Store Search] Fallback also failed:", err.message);
+    return [];
   }
-  return [];
 }
 
 /**
- * Get detailed nutrition for a specific Swedish food by ID
+ * Get full nutritional info for a food item by its ID
+ * @param {number|string} foodId
+ * @returns {Promise<Object|null>} - { name, calories, protein, fat, carbs, fiber } per 100g
  */
 export async function getFoodNutrition(foodId) {
   try {
-    const response = await fetch(`${API_BASE}/livsmedel-näringsämnen/${foodId}`);
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (!data.näringsämnen) return null;
+    const response = await fetch(`${API_BASE}/livsmedel/${foodId}/naringsvarden?sprak=1`);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
 
-    const n = data.näringsämnen;
+    const nutrients = await response.json();
+
+    const nutrientList = Array.isArray(nutrients) ? nutrients : nutrients.naringsvarden || [];
+
+    const getValue = (abbr, unit) => {
+      const n = nutrientList.find(item =>
+        (item.forkortning || "").toLowerCase() === abbr.toLowerCase() &&
+        (!unit || (item.enhet || "").toLowerCase() === unit.toLowerCase())
+      );
+      return n ? parseFloat(n.varde || 0) : 0;
+    };
+
+    // Get name from cache
+    const foods = cachedFoods || await loadFoodCache();
+    const foodItem = foods.find(f => f.id == foodId);
+
     return {
-      name: data.namn || "",
-      calories: Math.round(n.energi || 0),
-      protein: Math.round((n.protein || 0) * 10) / 10,
-      fat: Math.round((n.fett || 0) * 10) / 10,
-      carbs: Math.round((n.kolhydrater || 0) * 10) / 10,
-      fiber: Math.round((n.fiber || 0) * 10) / 10,
-      source: "Livsmedelsverket",
+      name: foodItem ? foodItem.name : "Unknown",
+      calories: getValue("Ener", "kcal"),
+      protein: getValue("Prot"),
+      fat: getValue("Fett"),
+      carbs: getValue("Kolh"),
+      fiber: getValue("Fibe"),
+      source: "Livsmedelsverket (Swedish Food Agency)",
     };
   } catch (err) {
-    console.error("[Livsmedelsverket] Food detail error:", err);
+    console.error("Swedish Food API nutrition error:", err);
     return null;
   }
 }
-
